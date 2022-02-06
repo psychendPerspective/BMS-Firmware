@@ -16,7 +16,7 @@
 #endif
 
 #ifndef ENNOID_HV
-#define ENNOID_HV					0
+#define ENNOID_HV					1
 #endif
 
 #ifndef ENNOID_LV_2
