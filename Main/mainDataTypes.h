@@ -791,10 +791,9 @@ typedef enum {
 typedef enum {
 	sourcePackCurrentNone = 0,
 	sourcePackCurrentISL28022,
-	sourcePackCurrentCANDieBieShunt,
-	sourcePackCurrentCANIsaBellenHuette,
 	sourcePackCurrentINA226,
-	sourcePackCurrentCANVESC
+	sourcePackCurrentCANVESC,
+	sourceHALLeffectSensor
 } configPackCurrentDataSourceEnum;
 
 typedef enum {

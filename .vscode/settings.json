@@ -1,3 +1,12 @@
 {
-    "makefile.extensionOutputFolder": "./.vscode"
+    "makefile.extensionOutputFolder": "./.vscode",
+    "files.associations": {
+        "driverhwspi1.h": "c",
+        "stm32f3xx_hal.h": "c",
+        "maindatatypes.h": "c",
+        "moddelay.h": "c",
+        "datahelper.h": "c",
+        "modpowerelectronics.h": "c",
+        "driverswltc6804.h": "c"
+    }
 }

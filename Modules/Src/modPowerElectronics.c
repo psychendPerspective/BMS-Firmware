@@ -1297,10 +1297,11 @@ float modPowerElectronicsCalcPackCurrent(void){
 			returnCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
 			break;
 		case sourcePackCurrentNone:
-		case sourcePackCurrentCANDieBieShunt:
-		case sourcePackCurrentCANIsaBellenHuette:
 			returnCurrent = 0.0f;
-			break;
+		// case sourcePackCurrentCANDieBieShunt:
+		// case sourcePackCurrentCANIsaBellenHuette:
+		// 	returnCurrent = 0.0f;
+		// 	break;
 		case sourcePackCurrentINA226:
 			returnCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
 			break;
@@ -1318,6 +1319,8 @@ float modPowerElectronicsCalcPackCurrent(void){
 
 				returnCurrent = returnCurrentTemp/CAN_STATUS_MSGS_TO_STORE;
 			}
+		case sourceHALLeffectSensor:
+			returnCurrent = modPowerElectronicsHallEffectpackCurrent();
 			break;
 		default:
 			break;
@@ -1361,4 +1364,17 @@ void  modPowerElectronicsResetCurrentOffset(void){
 	currentOffset = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
 }
 
-
+float modPowerElectronicsHallEffectpackCurrent(void)
+{
+	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->packCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->packCurrentVREF))
+	{
+		modPowerElectronicsPackStateHandle->packCurrent = ((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625;
+		//Vout = Vref +/- (1.25xIp / Ipn)
+		//Ip -> packCurrent , Vref = 2.5V
+		//modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsPackStateHandle->packCurrent - currentOffset;
+	}
+	driverSWLTC6804ResetCellVoltageRegisters();
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	return (modPowerElectronicsPackStateHandle->packCurrent/1000.0f);
+}

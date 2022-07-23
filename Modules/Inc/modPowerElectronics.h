@@ -128,6 +128,8 @@ typedef struct {
 	expMonitorTypeDef expVoltagesIndividual[NoOfExpPossibleOnBMS];
 	
 	modPowerElectronicsPackOperationalCellStatesTypedef packOperationalCellState;
+	float packCurrentVoltage[1][1];
+	float packCurrentVREF[1][1];
 	
 	// Slave modules -> TODO move into struct.
 	float    cellModuleVoltages[NoOfCellMonitorsPossibleOnBMS][18];
@@ -185,5 +187,6 @@ void  modPowerElectronicsLCSenseSample(void);
 void  modPowerElectronicsLCSenseInit(void);
 uint16_t modPowerElectronicsLowestInThree(uint16_t num1,uint16_t num2,uint16_t num3);
 void  modPowerElectronicsResetCurrentOffset(void);
+float modPowerElectronicsHallEffectpackCurrent(void);
 
 #endif
