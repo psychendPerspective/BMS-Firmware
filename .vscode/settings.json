@@ -10,6 +10,7 @@
         "driverswltc6804.h": "c",
         "modcan.h": "c",
         "libfirfilter.h": "c",
-        "libcrc.h": "c"
+        "libcrc.h": "c",
+        "libekf.h": "c"
     }
 }

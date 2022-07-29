@@ -65,6 +65,7 @@ SRCS += ./Libraries/Src/libPacket.c
 SRCS += ./Libraries/Src/libRingBuffer.c
 SRCS += ./Libraries/Src/libMempools.c
 SRCS += ./Libraries/Src/libFIRfilter.c
+SRCS += ./Libraries/Src/libEKF.c
 
 SRCS += ./Config/confparser.c
 SRCS += ./Config/confxml.c

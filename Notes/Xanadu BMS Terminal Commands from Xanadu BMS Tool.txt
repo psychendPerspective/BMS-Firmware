@@ -1,0 +1,14 @@
+Valid commands for Xanadu BMS that can be sent on the Terminal Window on the Xanadu BMS tool are given below
+
+help : To display help regarding valid commands
+ping : Ping the BMS to check validity of USB communication and recieve back pong on the Terminal Window
+slave_scan : Scan the I2C devices on the slave.
+status : Print battery measurements summary.
+sens : Print all sensor values.
+cells : Print cell voltage measurements.
+config : Print BMS configuration.
+config_default : Load default BMS configuration.
+config_write : Store current BMS configuration to EEPROM.
+config_read : Read BMS configuration from EEPROM.
+hwinfo : Print the hardware information and version data
+testbms [error (V)] [bal drop (mV)]: Test the cell connection between cell monitor and pack and pack vs cell measurement.
