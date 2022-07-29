@@ -34,6 +34,7 @@
 #include "math.h"
 #include "driverSWSHT21.h"
 #include "driverSWHTC1080.h"
+#include "libFIRfilter.h"
 
 
 #define NoOfCellsPossibleOnBMS	      	180
@@ -134,7 +135,7 @@ typedef struct {
 	float packCurrentVREF[1][1];
 	float zeroCurrentVoltage[1][12];
 	float zeroCurrentVREF[1][12];
-	float HallEffectcurrentOffset; 
+	float movingAvgHallEffectpackCurrent, hallEffectpackCurrent, HallEffectcurrentOffset; 
 	
 	// Slave modules -> TODO move into struct.
 	float    cellModuleVoltages[NoOfCellMonitorsPossibleOnBMS][18];

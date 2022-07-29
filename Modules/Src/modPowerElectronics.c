@@ -23,6 +23,7 @@
 
 modPowerElectronicsPackStateTypedef *modPowerElectronicsPackStateHandle;
 modConfigGeneralConfigStructTypedef *modPowerElectronicsGeneralConfigHandle;
+FIRFilter packCurrentMovingAverage;
 
 uint32_t modPowerElectronicsCANCurrentVESCLastTick;
 
@@ -1372,6 +1373,7 @@ void  modPowerElectronicsResetCurrentOffset(void){
 
 void modPowerElectronicsZeroCurrentConversion(void)
 {
+	FIRFilter_Init(&packCurrentMovingAverage);
 	driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage);
 	driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF);
 	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF))
@@ -1395,17 +1397,18 @@ void modPowerElectronicsZeroCurrentConversion(void)
 
 float modPowerElectronicsHallEffectpackCurrent(void)
 {
-	//TO DO: moving average filter
 	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->packCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->packCurrentVREF))
 	{
 		//Vout = Vref +/- (1.25xIp / Ipn)
 		//Ip -> packCurrent , Vref ~ 2.5V
-		modPowerElectronicsPackStateHandle->packCurrent = (((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625) - (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
-		//modCommandsPrintf("Zero Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
+		modPowerElectronicsPackStateHandle-> hallEffectpackCurrent = (((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625) - (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
+		//modCommandsPrintf("Raw Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->hallEffectpackCurrent);
+		modPowerElectronicsPackStateHandle-> movingAvgHallEffectpackCurrent = FIRFilter_Update(&packCurrentMovingAverage, modPowerElectronicsPackStateHandle->hallEffectpackCurrent); //moving average filter
+		//modCommandsPrintf("Avg Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent);
 	}
 	driverSWLTC6804ResetCellVoltageRegisters();
 	driverSWLTC6804ResetAuxRegisters();
 	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
-	return (modPowerElectronicsPackStateHandle->packCurrent/1000.0f);
+	return (modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent/1000.0f);
 }
 

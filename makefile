@@ -1,4 +1,4 @@
-# GCC makefile for ENNOID-BMS-SS firmware
+# GCC makefile for Xanadu-BMS firmware
 
 SRCS  = ./Main/main.c
 SRCS += ./Modules/Src/modCAN.c
@@ -64,6 +64,7 @@ SRCS += ./Libraries/Src/libGraphics.c
 SRCS += ./Libraries/Src/libPacket.c
 SRCS += ./Libraries/Src/libRingBuffer.c
 SRCS += ./Libraries/Src/libMempools.c
+SRCS += ./Libraries/Src/libFIRfilter.c
 
 SRCS += ./Config/confparser.c
 SRCS += ./Config/confxml.c
