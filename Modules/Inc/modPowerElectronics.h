@@ -39,13 +39,15 @@
 #define NoOfCellsPossibleOnBMS	      	180
 #define NoOfCellMonitorsPossibleOnBMS 	10
 
-#define NoOfAuxPossibleOnBMS	      		120
+#define NoOfAuxPossibleOnBMS	        120
 
-#define NoOfExpPossibleOnBMS	      		72
+#define NoOfExpPossibleOnBMS	      	72
 #define NoOfExpMonitorPossibleOnBMS	    9
 
 #define NoOfTempSensors               	14
 #define VinErrorThreshold             	10
+
+#define zeroCurrentCalibrationTime      10
 
 typedef enum {
 	TEMP_EXT_LTC_NTC0 = 0,									// EXT on master BMS on LTC
@@ -130,6 +132,9 @@ typedef struct {
 	modPowerElectronicsPackOperationalCellStatesTypedef packOperationalCellState;
 	float packCurrentVoltage[1][1];
 	float packCurrentVREF[1][1];
+	float zeroCurrentVoltage[1][12];
+	float zeroCurrentVREF[1][12];
+	float HallEffectcurrentOffset; 
 	
 	// Slave modules -> TODO move into struct.
 	float    cellModuleVoltages[NoOfCellMonitorsPossibleOnBMS][18];
@@ -188,5 +193,6 @@ void  modPowerElectronicsLCSenseInit(void);
 uint16_t modPowerElectronicsLowestInThree(uint16_t num1,uint16_t num2,uint16_t num3);
 void  modPowerElectronicsResetCurrentOffset(void);
 float modPowerElectronicsHallEffectpackCurrent(void);
+void modPowerElectronicsZeroCurrentConversion(void);
 
 #endif

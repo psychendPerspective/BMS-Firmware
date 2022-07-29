@@ -7,6 +7,7 @@
         "moddelay.h": "c",
         "datahelper.h": "c",
         "modpowerelectronics.h": "c",
-        "driverswltc6804.h": "c"
+        "driverswltc6804.h": "c",
+        "modcan.h": "c"
     }
 }

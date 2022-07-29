@@ -36,6 +36,7 @@ uint32_t modPowerElectronicsCellBalanceUpdateLastTick;
 uint32_t modPowerElectronicsTempMeasureDelayLastTick;
 uint32_t modPowerElectronicsChargeCurrentDetectionLastTick;
 uint32_t modPowerElectronicsBalanceModeActiveLastTick;
+uint32_t modPowerElectronicsZeroCurrentCalibTick;
 
 uint32_t modPowerElectronicsBuzzerUpdateIntervalLastTick;
 uint32_t modPowerElectronicsThrottleChargeLastTick;
@@ -63,69 +64,69 @@ uint8_t currentOffsetCounter = 0;
 //uint32_t hardUnderVoltageFlags, hardOverVoltageFlags;
 
 void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer) {
-	modPowerElectronicsGeneralConfigHandle						= generalConfigPointer;
-	modPowerElectronicsPackStateHandle						= packState;
-	modPowerElectronicsUnderAndOverVoltageErrorCount				= 0;
-	modPowerElectronicsUnderAndOverTemperatureErrorCount				= 0;
-	modPowerElectronicsAllowForcedOnState						= false;
-	modPowerElectronicsVinErrorCount						= 0;
-	modPowerElectronicsChargeDiodeBypassHysteresis					= 0.0f;
-	modPowerElectronicsVoltageSenseError						= false;
-	modPowerElectronicsChargeDeratingActive						= false;
-	modPowerElectronicsFirstDischarge						= true;
+	modPowerElectronicsGeneralConfigHandle						                  = generalConfigPointer;
+	modPowerElectronicsPackStateHandle						                      = packState;
+	modPowerElectronicsUnderAndOverVoltageErrorCount				              = 0;
+	modPowerElectronicsUnderAndOverTemperatureErrorCount				          = 0;
+	modPowerElectronicsAllowForcedOnState						                  = false;
+	modPowerElectronicsVinErrorCount						                      = 0;
+	modPowerElectronicsChargeDiodeBypassHysteresis					              = 0.0f;
+	modPowerElectronicsVoltageSenseError						                  = false;
+	modPowerElectronicsChargeDeratingActive						                  = false;
+	modPowerElectronicsFirstDischarge						                      = true;
 	
 	// Init pack status
-	modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS		= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage			= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery	= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyCharge				= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage		= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery	= 0;
-	modPowerElectronicsPackStateHandle->throttleDutyDischarge			= 0;
-	modPowerElectronicsPackStateHandle->SoC						= 0.0f;
-	modPowerElectronicsPackStateHandle->SoCCapacityAh				= 0.0f;
-	modPowerElectronicsPackStateHandle->operationalState				= OP_STATE_INIT;
-	modPowerElectronicsPackStateHandle->faultState					= FAULT_CODE_NONE;
-	modPowerElectronicsPackStateHandle->packVoltage					= 0.0f;
-	modPowerElectronicsPackStateHandle->packCurrent					= 0.0f;
-	modPowerElectronicsPackStateHandle->packPower					= 0.0f;
-	modPowerElectronicsPackStateHandle->loCurrentLoadCurrent			= 0.0f;
-	modPowerElectronicsPackStateHandle->loCurrentLoadVoltage			= 0.0f;
-	modPowerElectronicsPackStateHandle->chargerVoltage				= 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageHigh				= 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageLow				= 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageAverage				= 0.0;
-	modPowerElectronicsPackStateHandle->disChargeDesired				= false;
-	modPowerElectronicsPackStateHandle->disChargeLCAllowed				= true;
-	modPowerElectronicsPackStateHandle->preChargeDesired				= false;
-	modPowerElectronicsPackStateHandle->chargeDesired				= false;
-	modPowerElectronicsPackStateHandle->chargePFETDesired				= false;
-	modPowerElectronicsPackStateHandle->chargeAllowed				= true;
-	modPowerElectronicsPackStateHandle->coolingDesired				= false;
-	modPowerElectronicsPackStateHandle->coolingAllowed				= true;
-	modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe			= false;
-	modPowerElectronicsPackStateHandle->chargeBalanceActive				= false;
-	modPowerElectronicsPackStateHandle->balanceActive				= false;
-	modPowerElectronicsPackStateHandle->chargeCurrentDetected			= false;
-	modPowerElectronicsPackStateHandle->powerButtonActuated				= false;
-	modPowerElectronicsPackStateHandle->packInSOACharge				= true;
-	modPowerElectronicsPackStateHandle->packInSOADischarge				= true;	
-	modPowerElectronicsPackStateHandle->watchDogTime				= 255;
-	modPowerElectronicsPackStateHandle->packOperationalCellState			= PACK_STATE_NORMAL;
-	modPowerElectronicsPackStateHandle->temperatures[0]				= -50.0f;
-	modPowerElectronicsPackStateHandle->temperatures[1]				= -50.0f;
-	modPowerElectronicsPackStateHandle->temperatures[2]				= -50.0f;
-	modPowerElectronicsPackStateHandle->temperatures[3]				= -50.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryHigh				= 0.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryLow				= 0.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryAverage				= 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSHigh					= 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSLow					= 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSAverage				= 0.0f;
-	modPowerElectronicsPackStateHandle->humidity					= 0.0f;
-	modPowerElectronicsPackStateHandle->buzzerOn					= false;
-	modPowerElectronicsPackStateHandle->powerDownDesired				= false;
-	modPowerElectronicsPackStateHandle->powerOnLongButtonPress			= false;
+	modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS		  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage			      = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery	  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyCharge				          = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage			  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery	  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischarge					  = 0;
+	modPowerElectronicsPackStateHandle->SoC						  			      = 0.0f;
+	modPowerElectronicsPackStateHandle->SoCCapacityAh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->operationalState						  = OP_STATE_INIT;
+	modPowerElectronicsPackStateHandle->faultState							      = FAULT_CODE_NONE;
+	modPowerElectronicsPackStateHandle->packVoltage								  = 0.0f;
+	modPowerElectronicsPackStateHandle->packCurrent								  = 0.0f;
+	modPowerElectronicsPackStateHandle->packPower								  = 0.0f;
+	modPowerElectronicsPackStateHandle->loCurrentLoadCurrent					  = 0.0f;
+	modPowerElectronicsPackStateHandle->loCurrentLoadVoltage					  = 0.0f;
+	modPowerElectronicsPackStateHandle->chargerVoltage				  			  = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageHigh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageLow						      = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageAverage						  = 0.0;
+	modPowerElectronicsPackStateHandle->disChargeDesired						  = false;
+	modPowerElectronicsPackStateHandle->disChargeLCAllowed						  = true;
+	modPowerElectronicsPackStateHandle->preChargeDesired						  = false;
+	modPowerElectronicsPackStateHandle->chargeDesired							  = false;
+	modPowerElectronicsPackStateHandle->chargePFETDesired					      = false;
+	modPowerElectronicsPackStateHandle->chargeAllowed							  = true;
+	modPowerElectronicsPackStateHandle->coolingDesired						   	  = false;
+	modPowerElectronicsPackStateHandle->coolingAllowed							  = true;
+	modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe				  = false;
+	modPowerElectronicsPackStateHandle->chargeBalanceActive						  = false;
+	modPowerElectronicsPackStateHandle->balanceActive							  = false;
+	modPowerElectronicsPackStateHandle->chargeCurrentDetected					  = false;
+	modPowerElectronicsPackStateHandle->powerButtonActuated						  = false;
+	modPowerElectronicsPackStateHandle->packInSOACharge							  = true;
+	modPowerElectronicsPackStateHandle->packInSOADischarge						  = true;	
+	modPowerElectronicsPackStateHandle->watchDogTime							  = 255;
+	modPowerElectronicsPackStateHandle->packOperationalCellState				  = PACK_STATE_NORMAL;
+	modPowerElectronicsPackStateHandle->temperatures[0]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[1]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[2]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[3]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryHigh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryLow						   	  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryAverage						  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSHigh								  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSLow								  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSAverage							  = 0.0f;
+	modPowerElectronicsPackStateHandle->humidity							  	  = 0.0f;
+	modPowerElectronicsPackStateHandle->buzzerOn								  = false;
+	modPowerElectronicsPackStateHandle->powerDownDesired						  = false;
+	modPowerElectronicsPackStateHandle->powerOnLongButtonPress					  = false;
 	
 	// init the cell module variables empty
 	for( uint8_t modulePointer = 0; modulePointer < NoOfCellMonitorsPossibleOnBMS; modulePointer++) {
@@ -146,10 +147,12 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 			modPowerElectronicsPackStateHandle->expModuleVoltages[modulePointer][expPointer] = 0.0f;
 	}
 	
+	// Init battery stack monitor
+	modPowerElectronicsCellMonitorsInit();
 	modPowerElectronicsCellMonitorsStartCellConversion();
 
 	// Init the external bus monitor
-  modPowerElectronicsInitISL();
+  	modPowerElectronicsInitISL();
 	
 	#if (HAS_HUMIDITY)
 		if(modPowerElectronicsGeneralConfigHandle->humidityICType == si7020)
@@ -162,13 +165,15 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	driverHWADCInit();
 	driverHWSwitchesInit();
 	
-	// Init battery stack monitor
-	modPowerElectronicsCellMonitorsInit();
 	
 	modPowerElectronicsChargeCurrentDetectionLastTick = HAL_GetTick();
 	modPowerElectronicsBalanceModeActiveLastTick      = HAL_GetTick();
 	modPowerElectronicsSOAChargeChangeLastTick        = HAL_GetTick();
-	modPowerElectronicsSOADisChargeChangeLastTick     = HAL_GetTick();	
+	modPowerElectronicsSOADisChargeChangeLastTick     = HAL_GetTick();
+	modPowerElectronicsZeroCurrentCalibTick           = HAL_GetTick();
+
+	//Do zero current calibration
+	modPowerElectronicsZeroCurrentConversion();	
 	
 	// Sample the first pack voltage moment
 	driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->packVoltage,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
@@ -969,25 +974,24 @@ void modPowerElectronicsCellMonitorsInit(void){
 void modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void){
 	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
 	
-			// Check config valid and reinit
-			// TODO: Implement
-			
-			// Read cell voltages
-			driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
-			modPowerElectronicsCellMonitorsArrayTranslate();
-			
-				
-			// Convert modules to full array
-			
-			// Read aux voltages
-			driverSWLTC6804ReadAuxVoltagesArray(modPowerElectronicsPackStateHandle->auxModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
-			modPowerElectronicsAuxMonitorsArrayTranslate();
-			//driverSWLTC6804ReadAuxSensors(modPowerElectronicsAuxVoltageArray);
-			//modPowerElectronicsPackStateHandle->temperatures[0] =	modPowerElectronicsPackStateHandle->temperatures[1] = driverSWLTC6804ConvertTemperatureExt(modPowerElectronicsAuxVoltageArray[1],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
-			
-				//Read exp voltages
-			driverSWADC128D818ReadExpVoltagesArray(modPowerElectronicsPackStateHandle->expModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupExp],25.0f);
-			modPowerElectronicsExpMonitorsArrayTranslate();
+	// Check config valid and reinit
+	// TODO: Implement
+	
+	// Read cell voltages
+	driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
+	modPowerElectronicsCellMonitorsArrayTranslate();		
+		
+	// Convert modules to full array
+	
+	// Read aux voltages
+	driverSWLTC6804ReadAuxVoltagesArray(modPowerElectronicsPackStateHandle->auxModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
+	modPowerElectronicsAuxMonitorsArrayTranslate();
+	//driverSWLTC6804ReadAuxSensors(modPowerElectronicsAuxVoltageArray);
+	//modPowerElectronicsPackStateHandle->temperatures[0] =	modPowerElectronicsPackStateHandle->temperatures[1] = driverSWLTC6804ConvertTemperatureExt(modPowerElectronicsAuxVoltageArray[1],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
+	
+		//Read exp voltages
+	driverSWADC128D818ReadExpVoltagesArray(modPowerElectronicsPackStateHandle->expModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupExp],25.0f);
+	modPowerElectronicsExpMonitorsArrayTranslate();
 }
 
 void modPowerElectronicsCellMonitorsArrayTranslate(void) {
@@ -1038,7 +1042,9 @@ void modPowerElectronicsExpMonitorsArrayTranslate(void) {
 void modPowerElectronicsCellMonitorsStartCellConversion(void) {
 	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
 	driverSWLTC6804ResetCellVoltageRegisters();
-	driverSWLTC6804StartCellVoltageConversion(MD_FILTERED,DCP_DISABLED,CELL_CH_ALL);
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	//driverSWLTC6804StartCellVoltageConversion(MD_FILTERED,DCP_DISABLED,CELL_CH_ALL);
 }
 
 void modPowerElectronicsCellMonitorsStartLoadedCellConversion(bool PUP) {
@@ -1050,9 +1056,9 @@ void modPowerElectronicsCellMonitorsStartLoadedCellConversion(bool PUP) {
 void modPowerElectronicsCellMonitorsStartTemperatureConversion(void) {
 	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
 	
-			// For other GPIOs voltages conversions, the below functions are used.
-				driverSWLTC6804ResetAuxRegisters();
-				driverSWLTC6804StartAuxVoltageConversion(MD_FILTERED, AUX_CH_ALL);
+// For other GPIOs voltages conversions, the below functions are used.
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartAuxVoltageConversion(MD_FILTERED, AUX_CH_ALL);
 				
 }
 
@@ -1364,17 +1370,42 @@ void  modPowerElectronicsResetCurrentOffset(void){
 	currentOffset = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
 }
 
+void modPowerElectronicsZeroCurrentConversion(void)
+{
+	driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage);
+	driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF);
+	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF))
+	{
+		for(int i = 0; i <zeroCurrentCalibrationTime; i++)
+		{
+			//TO DO : implement for HallEffectcurrentOffset int32_t as zero current can be negative or positive value
+			modPowerElectronicsPackStateHandle->HallEffectcurrentOffset = ((modPowerElectronicsPackStateHandle->zeroCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->zeroCurrentVREF[0][1]*1000.0f))/0.00625; //mA
+			driverSWLTC6804ResetAuxRegisters();
+			driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+			HAL_Delay(250);
+			driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage);
+			driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF);
+			if((-300 < modPowerElectronicsPackStateHandle-> HallEffectcurrentOffset) && (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset < 300))
+			{
+				break;
+			}
+		}
+	}
+}
+
 float modPowerElectronicsHallEffectpackCurrent(void)
 {
+	//TO DO: moving average filter
 	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->packCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->packCurrentVREF))
 	{
-		modPowerElectronicsPackStateHandle->packCurrent = ((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625;
 		//Vout = Vref +/- (1.25xIp / Ipn)
-		//Ip -> packCurrent , Vref = 2.5V
-		//modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsPackStateHandle->packCurrent - currentOffset;
+		//Ip -> packCurrent , Vref ~ 2.5V
+		modPowerElectronicsPackStateHandle->packCurrent = (((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625) - (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
+		//modCommandsPrintf("Zero Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
 	}
 	driverSWLTC6804ResetCellVoltageRegisters();
 	driverSWLTC6804ResetAuxRegisters();
 	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
 	return (modPowerElectronicsPackStateHandle->packCurrent/1000.0f);
 }
+
