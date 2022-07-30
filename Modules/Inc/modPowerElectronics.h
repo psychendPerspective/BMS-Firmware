@@ -38,7 +38,7 @@
 
 
 #define NoOfCellsPossibleOnBMS	      	180
-#define NoOfCellMonitorsPossibleOnBMS 	1
+#define NoOfCellMonitorsPossibleOnBMS 	10
 
 #define NoOfAuxPossibleOnBMS	        120
 

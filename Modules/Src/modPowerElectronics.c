@@ -197,7 +197,7 @@ bool modPowerElectronicsTask(void) {
 		// reset tick for LTC Temp start conversion delay
 		modPowerElectronicsTempMeasureDelayLastTick = HAL_GetTick();
 		
-		// Collect low current current path, pack data and check validity + recover if invalid.
+		// Measure pack voltage data and check validity + recover if invalid.
 		modPowerElectronicsSamplePackAndLCData();
 		
 		// Check whether packvoltage is whithin theoretical limits
@@ -205,7 +205,7 @@ bool modPowerElectronicsTask(void) {
 			modPowerElectronicsVoltageSenseError = true;
 		}
 		
-		// Combine the currents based on config and calculate pack power.
+		// Check the pack currents based on config and calculate pack power.
 		modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsCalcPackCurrent();
 		modPowerElectronicsPackStateHandle->packPower   = modPowerElectronicsPackStateHandle->packCurrent * modPowerElectronicsPackStateHandle->packVoltage;
 		
@@ -257,7 +257,7 @@ bool modPowerElectronicsTask(void) {
 		//Measure temperature voltages
 		modPowerElectronicsCellMonitorsStartTemperatureConversion();
 		
-		// Calculate temperature statisticks
+		// Calculate temperature statistics
 		modPowerElectronicsCalcTempStats();
 		
 		// Check and respond to the measured voltage values
@@ -266,8 +266,7 @@ bool modPowerElectronicsTask(void) {
 		// Check and respond to the measured current values
 		modPowerElectronicsSubTaskCurrentWatch();
 		
-		
-		// Check and respond to the measured temperature values
+		// Check if pack is in safe operating region and respond to the measured temperature values
 		modPowerElectronicsCheckPackSOA();
 		
 		modPowerElectronicsPackStateHandle->powerButtonActuated = modPowerStateGetButtonPressedState();
@@ -659,8 +658,9 @@ void modPowerElectronicsCalcTempStats(void) {
 		tempBMSMin = 0.0f;
 	}
 	
-	// BMS temperatures
-	
+	// BMS Board temperatures
+	#if BMS_BOARD_NTC
+
 	for(uint8_t sensorPointer = 1; sensorPointer < 16; sensorPointer++){
 		if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBMS & (1 << sensorPointer)){
 			modPowerElectronicsPackStateHandle->temperatures[sensorPointer] = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer-1].auxVoltage;
@@ -697,6 +697,28 @@ void modPowerElectronicsCalcTempStats(void) {
 			}
 		}
 	}
+	#endif
+
+	#if BMS_16S_CONFIG
+		// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
+		for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
+		{  //sensorPointer starts at 2, as GPIO_1 and GPIO_2 is used for current sensing
+			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+					tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+					tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+				tempBatterySumCount++;
+			}
+		}
+	}
+	#endif
+
 	
 	// Battery temperatures statistics for expansion board
 	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->noOfExpansionBoard; sensorModulePointer++) {
@@ -712,7 +734,7 @@ void modPowerElectronicsCalcTempStats(void) {
 			tempBatterySumCount++;		
 		}
 	}
-}
+	}	
 	
 
 	
@@ -724,14 +746,17 @@ void modPowerElectronicsCalcTempStats(void) {
 	else
 		modPowerElectronicsPackStateHandle->tempBatteryAverage = 0.0f;
 	
-	// BMS temperatures
+	// BMS board temperatures
+	#if BMS_BOARD_NTC
 	modPowerElectronicsPackStateHandle->tempBMSHigh        = tempBMSMax;
 	modPowerElectronicsPackStateHandle->tempBMSLow         = tempBMSMin;
 	if(tempBMSSumCount)
 		modPowerElectronicsPackStateHandle->tempBMSAverage = tempBMSSum/tempBMSSumCount;
 	else
 		modPowerElectronicsPackStateHandle->tempBMSAverage = 0.0f;
-};
+
+	#endif
+}
 
 void modPowerElectronicsCalcThrottle(void) {
 	static uint16_t filteredChargeThrottle = 0;
@@ -986,9 +1011,6 @@ void modPowerElectronicsCellMonitorsInit(void){
 void modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void){
 	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
 	
-	// Check config valid and reinit
-	// TODO: Implement
-	
 	// Read cell voltages
 	driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
 	modPowerElectronicsCellMonitorsArrayTranslate();		
@@ -1001,7 +1023,7 @@ void modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void){
 	//driverSWLTC6804ReadAuxSensors(modPowerElectronicsAuxVoltageArray);
 	//modPowerElectronicsPackStateHandle->temperatures[0] =	modPowerElectronicsPackStateHandle->temperatures[1] = driverSWLTC6804ConvertTemperatureExt(modPowerElectronicsAuxVoltageArray[1],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
 	
-		//Read exp voltages
+	//Read exp voltages
 	driverSWADC128D818ReadExpVoltagesArray(modPowerElectronicsPackStateHandle->expModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupExp],25.0f);
 	modPowerElectronicsExpMonitorsArrayTranslate();
 }
@@ -1029,7 +1051,7 @@ void modPowerElectronicsAuxMonitorsArrayTranslate(void) {
 	uint8_t individualAuxPointer = 0;
 	
   for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
-	  for(uint8_t modulePointerAux = 0; modulePointerAux < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; modulePointerAux++) {
+	  for(uint8_t modulePointerAux = 0; modulePointerAux < (modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule + 5); modulePointerAux++) {
 			if(modulePointerAux < 5){		
 				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux];
 				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
@@ -1039,6 +1061,10 @@ void modPowerElectronicsAuxMonitorsArrayTranslate(void) {
 			}
 		}
 	}
+	// modCommandsPrintf("T1:%f,T2:%f,T3:%f,T4:%f,T5:%f,T6:%f,T7:%f\n",
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[2].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[3].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[4].auxVoltage,
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[5].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[6].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[7].auxVoltage,
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[8].auxVoltage);
 }
 
 void modPowerElectronicsExpMonitorsArrayTranslate(void) {

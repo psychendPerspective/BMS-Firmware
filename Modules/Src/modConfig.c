@@ -370,8 +370,8 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->emitStatusProtocol                             	                 = canEmitProtocolVESC; 			// Can emit protocol set to MG style for backwards compatibility
 	configLocation->tempEnableMaskBMS                              	                 = 0x0001;				// Bitwise select what sensor to enable for the BMS (internal sensors).
 	configLocation->tempEnableMaskBattery                          	                 = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
-  configLocation->tempEnableMaskExpansion                         	                 = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
-	configLocation->noOfTempSensorPerModule            		                         = 1;					// Number of temperature sensors monitored per LTC68XX
+  	configLocation->tempEnableMaskExpansion                         	             = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
+	configLocation->noOfTempSensorPerModule            		                         = 7;					// Number of temperature sensors monitored per LTC68XX
 	configLocation->noOfExpansionBoard       			                             = 0;					// Number of expansion board
 	configLocation->noOfTempSensorPerExpansionBoard          	                     = 0;					// Number of temperature sensors monitored per expansion board
 	configLocation->LCUseDischarge                                  	             = disabled;                 		// Enable or disable the solid state output
@@ -388,7 +388,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->NTC25DegResistance[modConfigNTCGroupMasterPCB] 	                 = 100000;                 		// NTC resistance at 25 degree
 	configLocation->NTC25DegResistance[modConfigNTCGroupExp] 	                     = 100000;                 		// NTC resistance at 25 degree
 	configLocation->NTCBetaFactor[modConfigNTCGroupLTCExt]         	                 = 3435;                   		// NTC Beta factor
-	configLocation->NTCBetaFactor[modConfigNTCGroupMasterPCB]      	                 = 4250;                   		// NTC Beta factor
+	configLocation->NTCBetaFactor[modConfigNTCGroupMasterPCB]      	                 = 3435;                   		// NTC Beta factor
 	configLocation->NTCBetaFactor[modConfigNTCGroupExp]		                         = 3435;                  		// NTC Beta factor
 	configLocation->cellMonitorType                                	                 = CELL_MON_LTC6813_1;     		// Use the new cell voltage monitor
 	configLocation->cellMonitorICCount                             	                 = 1;                      		// Only one slave IC

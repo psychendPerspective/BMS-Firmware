@@ -66,12 +66,13 @@
 	#define HW_LIM_CELL_BALANCE_MAX_SIMULTANEOUS_DISCHARGE  18
 	#define HW_LIM_CELL_MONITOR_IC_COUNT                    18
 	#define HW_LIM_MIN_NOT_USED_DELAY                       5000
-	#define HAS_ON_BOARD_NTC				                0					
+	#define HAS_ON_BOARD_NTC				                0	   //has on-board NTC
 	#define ISL28022_MASTER_ADDRES				            0x40
 	#define HAS_DISCHARGE					                1
 	#define HAS_COMMON_CHARGE_DISCHARGE_OPTION		        1
 	#define HAS_EXTERNAL_VOLTAGE_MEASUREMENT				0      //has isolated Op-amp(AMC3302/ISL)
 	#define BMS_16S_CONFIG                                  1
+	#define BMS_BOARD_NTC									0      //has tempertaure sensors(NTC) on the BMS board
 #endif
 
 #if ENNOID_SS
