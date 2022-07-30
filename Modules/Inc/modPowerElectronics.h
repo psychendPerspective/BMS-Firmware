@@ -38,7 +38,7 @@
 
 
 #define NoOfCellsPossibleOnBMS	      	180
-#define NoOfCellMonitorsPossibleOnBMS 	10
+#define NoOfCellMonitorsPossibleOnBMS 	1
 
 #define NoOfAuxPossibleOnBMS	        120
 
@@ -48,7 +48,7 @@
 #define NoOfTempSensors               	14
 #define VinErrorThreshold             	10
 
-#define zeroCurrentCalibrationTime      10
+#define zeroCurrentCalibrationTime      25
 
 typedef enum {
 	TEMP_EXT_LTC_NTC0 = 0,									// EXT on master BMS on LTC

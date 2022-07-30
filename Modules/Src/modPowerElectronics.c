@@ -38,6 +38,7 @@ uint32_t modPowerElectronicsTempMeasureDelayLastTick;
 uint32_t modPowerElectronicsChargeCurrentDetectionLastTick;
 uint32_t modPowerElectronicsBalanceModeActiveLastTick;
 uint32_t modPowerElectronicsZeroCurrentCalibTick;
+uint32_t readVoltagedelayLastTick;
 
 uint32_t modPowerElectronicsBuzzerUpdateIntervalLastTick;
 uint32_t modPowerElectronicsThrottleChargeLastTick;
@@ -96,7 +97,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsPackStateHandle->chargerVoltage				  			  = 0.0f;
 	modPowerElectronicsPackStateHandle->cellVoltageHigh							  = 0.0f;
 	modPowerElectronicsPackStateHandle->cellVoltageLow						      = 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageAverage						  = 0.0;
+	modPowerElectronicsPackStateHandle->cellVoltageAverage						  = 0.0f;
 	modPowerElectronicsPackStateHandle->disChargeDesired						  = false;
 	modPowerElectronicsPackStateHandle->disChargeLCAllowed						  = true;
 	modPowerElectronicsPackStateHandle->preChargeDesired						  = false;
@@ -147,9 +148,11 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 		for(uint8_t expPointer = 0; expPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerExpansionBoard; expPointer++)
 			modPowerElectronicsPackStateHandle->expModuleVoltages[modulePointer][expPointer] = 0.0f;
 	}
-	
+
 	// Init battery stack monitor
 	modPowerElectronicsCellMonitorsInit();
+	
+	//start cell voltage ADC conversion by isoSPI write to LTC681x
 	modPowerElectronicsCellMonitorsStartCellConversion();
 
 	// Init the external bus monitor
@@ -206,7 +209,7 @@ bool modPowerElectronicsTask(void) {
 		modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsCalcPackCurrent();
 		modPowerElectronicsPackStateHandle->packPower   = modPowerElectronicsPackStateHandle->packCurrent * modPowerElectronicsPackStateHandle->packVoltage;
 		
-    // Read the battery cell voltages and temperatures with the cell monitor ICs
+    	// Read the battery cell voltages and temperatures with the cell monitor ICs
 		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
 		
 		// get PCB mounted temperature sensor & humitity if applicable
@@ -242,13 +245,13 @@ bool modPowerElectronicsTask(void) {
 			driverHWADCGetNTCValue(&modPowerElectronicsPackStateHandle->temperatures[0],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupMasterPCB],25.0f);
 		#endif
 		
-		// When temperature and cellvoltages are known calculate charge and discharge throttle.
+		// When temperature and cellvoltages are known ; calculate charge and discharge throttle.
 		modPowerElectronicsCalcThrottle();
 		
 		// Do the balancing task
 		modPowerElectronicsSubTaskBalancing();
 		
-		// Measure cell voltages
+		// Measure cell voltages and pack Current ADC value
 		modPowerElectronicsCellMonitorsStartCellConversion();
 		
 		//Measure temperature voltages
@@ -383,8 +386,16 @@ void modPowerElectronicsCalculateCellStats(void) {
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage > modPowerElectronicsPackStateHandle->cellVoltageHigh)
 			modPowerElectronicsPackStateHandle->cellVoltageHigh = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
 		
+		#if BMS_16S_CONFIG
+		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow && modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage > 0.5f)
+			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
+		#endif
+
+		#ifndef BMS_16S_CONFIG
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow)
-			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;		
+			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
+		#endif
+
 	}
 	
 	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
@@ -1004,12 +1015,13 @@ void modPowerElectronicsCellMonitorsArrayTranslate(void) {
 				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellVoltage = modPowerElectronicsPackStateHandle->cellModuleVoltages[modulePointer][modulePointerCell];
 				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellNumber = individualCellPointer++;
 			}
-		}else{ // use noOfCellsPerModule as usually
+		}else
+		{ // use noOfCellsPerModule as usually
 			for(uint8_t modulePointerCell = 0; modulePointerCell < modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule; modulePointerCell++) {
 				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellVoltage = modPowerElectronicsPackStateHandle->cellModuleVoltages[modulePointer][modulePointerCell];
 				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellNumber = individualCellPointer++;
 			}
-		};
+		}
 	}
 }
 
@@ -1045,6 +1057,7 @@ void modPowerElectronicsCellMonitorsStartCellConversion(void) {
 	driverSWLTC6804ResetCellVoltageRegisters();
 	driverSWLTC6804ResetAuxRegisters();
 	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	//readVoltagedelayLastTick = HAL_GetTick();
 	//driverSWLTC6804StartCellVoltageConversion(MD_FILTERED,DCP_DISABLED,CELL_CH_ALL);
 }
 
@@ -1256,6 +1269,8 @@ void modPowerElectronicsSamplePackAndLCData(void) {
 	
 	modPowerElectronicsSamplePackVoltage(&tempPackVoltage);
 	modPowerElectronicsPackStateHandle->packVoltage = tempPackVoltage;
+
+	#if (HAS_EXTERNAL_VOLTAGE_MEASUREMENT)
 	modPowerElectronicsLCSenseSample();
 	
 	if(fabs(tempPackVoltage - modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage) < 0.2f*(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage)) {    // If the error is different than 20% continue normal operation. 
@@ -1269,6 +1284,7 @@ void modPowerElectronicsSamplePackAndLCData(void) {
 			modPowerElectronicsInitISL();																												// Reinit I2C and ISL
 		}
 	}
+	#endif
 }
 
 void modPowerElectronicsSamplePackVoltage(float *voltagePointer) {
@@ -1392,6 +1408,9 @@ void modPowerElectronicsZeroCurrentConversion(void)
 				break;
 			}
 		}
+	driverSWLTC6804ResetCellVoltageRegisters();
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
 	}
 }
 
@@ -1406,9 +1425,9 @@ float modPowerElectronicsHallEffectpackCurrent(void)
 		modPowerElectronicsPackStateHandle-> movingAvgHallEffectpackCurrent = FIRFilter_Update(&packCurrentMovingAverage, modPowerElectronicsPackStateHandle->hallEffectpackCurrent); //moving average filter
 		//modCommandsPrintf("Avg Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent);
 	}
-	driverSWLTC6804ResetCellVoltageRegisters();
-	driverSWLTC6804ResetAuxRegisters();
-	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	// driverSWLTC6804ResetCellVoltageRegisters();
+	// driverSWLTC6804ResetAuxRegisters();
+	// driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
 	return (modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent/1000.0f);
 }
 

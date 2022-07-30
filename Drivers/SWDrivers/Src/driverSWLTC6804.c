@@ -182,10 +182,10 @@ void driverSWLTC6804StartAuxVoltageConversion(uint8_t MD, uint8_t CHG) {
 
 bool driverSWLTC6804ReadCellVoltagesArray(float cellVoltagesArray[][driverSWLTC6804MaxNoOfCellPerModule]) {
 	bool dataValid = true;
-	uint16_t cellVoltageArrayCodes[driverSWLTC6804TotalNumberOfICs][driverSWLTC6804MaxNoOfCellPerModule];
-
+	uint16_t cellVoltageArrayCodes[driverSWLTC6804TotalNumberOfICs][driverSWLTC6804MaxNoOfCellPerModule]; 
+	
 	driverSWLTC6804ReadCellVoltageRegisters(CELL_CH_ALL,driverSWLTC6804TotalNumberOfICs,cellVoltageArrayCodes);
-
+	
   for(uint8_t modulePointer = 0; modulePointer < driverSWLTC6804TotalNumberOfICs; modulePointer++) {
 		for(uint8_t cellPointer = 0; cellPointer < driverSWLTC6804MaxNoOfCellPerModule; cellPointer++){
 			if(cellVoltageArrayCodes[modulePointer][cellPointer]*0.0001f < 10.0f)
@@ -194,7 +194,7 @@ bool driverSWLTC6804ReadCellVoltagesArray(float cellVoltagesArray[][driverSWLTC6
 				dataValid = false;
 		}
   }
-
+	
 	return dataValid;
 }
 
@@ -202,7 +202,7 @@ uint8_t driverSWLTC6804ReadCellVoltageRegisters(uint8_t reg, uint8_t total_ic, u
   const uint8_t NUM_RX_BYT = 8;
   const uint8_t BYT_IN_REG = 6;
   const uint8_t CELL_IN_REG = 3;
-
+  
   uint8_t  *cell_data;
   int8_t  pec_error = 0;
   uint16_t parsed_cell;
@@ -216,8 +216,8 @@ uint8_t driverSWLTC6804ReadCellVoltageRegisters(uint8_t reg, uint8_t total_ic, u
       data_counter = 0;
       driverSWLTC6804ReadCellVoltageGroups(cell_reg, total_ic,cell_data );								                     //Reads a single Cell voltage register
       for (uint8_t current_ic = 0 ; current_ic < total_ic; current_ic++) { 			           // executes for every LTC6804 in the daisy chain current_ic is used as the IC counter
-		    for(uint8_t current_cell = 0; current_cell<CELL_IN_REG; current_cell++) {	 	       // This loop parses the read back data into cell voltages, it loops once for each of the 3 cell voltage codes in the register
-          parsed_cell = cell_data[data_counter] + (cell_data[data_counter + 1] << 8);      //Each cell code is received as two bytes and is combined to create the parsed cell voltage code
+		    for(uint8_t current_cell = 0; current_cell<CELL_IN_REG; current_cell++) {	 	       // This loop parses the read back data into cell voltages, it loops once for each of the 3 cell voltage codes in the register 
+          parsed_cell = cell_data[data_counter] + (cell_data[data_counter + 1] << 8);      //Each cell code is received as two bytes and is combined to create the parsed cell voltage code													 
           cell_codes[current_ic][current_cell  + ((cell_reg - 1) * CELL_IN_REG)] = parsed_cell;
           data_counter = data_counter + 2;											                           //Because cell voltage codes are two bytes the data counter must increment by two for each parsed cell code
         }
@@ -232,14 +232,14 @@ uint8_t driverSWLTC6804ReadCellVoltageRegisters(uint8_t reg, uint8_t total_ic, u
   }else{
     driverSWLTC6804ReadCellVoltageGroups(reg, total_ic,cell_data);
     for (uint8_t current_ic = 0 ; current_ic < total_ic; current_ic++) { 				           // executes for every LTC6804 in the daisy chain current_ic is used as the IC counter
-		  for(uint8_t current_cell = 0; current_cell < CELL_IN_REG; current_cell++) {          // This loop parses the read back data into cell voltages, it loops once for each of the 3 cell voltage codes in the register
-			  parsed_cell = cell_data[data_counter] + (cell_data[data_counter+1]<<8);            //Each cell code is received as two bytes and is combined to create the parsed cell voltage code
+		  for(uint8_t current_cell = 0; current_cell < CELL_IN_REG; current_cell++) {          // This loop parses the read back data into cell voltages, it loops once for each of the 3 cell voltage codes in the register 
+			  parsed_cell = cell_data[data_counter] + (cell_data[data_counter+1]<<8);            //Each cell code is received as two bytes and is combined to create the parsed cell voltage code													
 			  cell_codes[current_ic][current_cell + ((reg - 1) * CELL_IN_REG)] = 0x0000FFFF & parsed_cell;
 			  data_counter= data_counter + 2;     									                             //Because cell voltage codes are two bytes the data counter must increment by two for each parsed cell code
 		  }
 	    received_pec = (cell_data[data_counter] << 8 )+ cell_data[data_counter + 1];         //The received PEC for the current_ic is transmitted as the 7th and 8th after the 6 cell voltage data bytes
       data_pec = driverSWLTC6804CalcPEC15(BYT_IN_REG, &cell_data[current_ic * NUM_RX_BYT]);
-
+		  
 			if(received_pec != data_pec) {
 			  pec_error = -1;															                                       //The pec_error variable is simply set negative if any PEC errors are detected in the serial data
 		  }
@@ -255,7 +255,7 @@ void driverSWLTC6804ReadCellVoltageGroups(uint8_t reg, uint8_t total_ic, uint8_t
   const uint8_t REG_LEN = 8; //number of bytes in each ICs register + 2 bytes for the PEC
   uint8_t cmd[4];
   uint16_t cmd_pec;
-
+  
   if (reg == 1) {      //1: RDCVA
     cmd[1] = 0x04;
     cmd[0] = 0x00;
@@ -278,8 +278,8 @@ void driverSWLTC6804ReadCellVoltageGroups(uint8_t reg, uint8_t total_ic, uint8_t
 
   cmd_pec = driverSWLTC6804CalcPEC15(2, cmd);
   cmd[2] = (uint8_t)(cmd_pec >> 8);
-  cmd[3] = (uint8_t)(cmd_pec);
-
+  cmd[3] = (uint8_t)(cmd_pec); 
+  
   driverSWLTC6804WakeIC(); //This will guarantee that the LTC6804 isoSPI port is awake. This command can be removed.
 	driverSWLTC6804WriteRead(cmd,4,data,(REG_LEN*total_ic));
 }
