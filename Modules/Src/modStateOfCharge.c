@@ -143,8 +143,9 @@ void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, 
 		modStateOfChargeGeneralConfigHandle = generalConfigPointer;
 		
 		switch(modStateOfChargeGeneralConfigHandle->cellTypeUsed)
-		{
-			case notValid:
+		{ //Extract lookup table based on discharge curves: https://automeris.io/WebPlotDigitizer/
+			case unavailable:
+				//TO DO:implement simple interpolation based on UV and OV limit
 				break;
 			
 			case AMS_18650_2500mAh:
@@ -157,20 +158,32 @@ void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, 
 			
 			case MOLICEL_21700_P42A: //TO DO : Debug this case 
 				static const float OCV_vs_SOC_MOLICEL_21700_P42A[NUM_OCV_VS_SOC_POINTS] = 
-													{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.880f, 3.820f,
-													3.810f, 3.800f, 3.780f, 3.740f, 3.720f, 3.710f, 3.690f, 3.660f,
-													3.650f, 3.520f, 2.980f, 2.910f, 2.800f};
+													{4.170f, 4.058f, 4.032f, 4.008f, 3.955f, 3.895f,3.847f, 3.803f, 
+													3.761f, 3.717f, 3.668f, 3.631f, 3.588f, 3.551f, 3.507f, 3.467f, 
+													3.429f, 3.378f, 3.276f, 2.970f, 2.504f};
 				memcpy(OCV_vs_SOC, OCV_vs_SOC_MOLICEL_21700_P42A, sizeof(OCV_vs_SOC_MOLICEL_21700_P42A));
 				break;
 			
-			case MOLICEL_18650_P28A:
-				//TO DO : Add lookup tables for different cells
+			case MOLICEL_18650_P28A:  //
+				static const float OCV_vs_SOC_MOLICEL_18650_P28A[NUM_OCV_VS_SOC_POINTS] = 
+													{4.188f, 4.063f, 4.013f, 3.960f, 3.902f, 3.857f, 3.816f, 3.776f, 
+													3.735f, 3.689f, 3.649f, 3.610f, 3.573f, 3.542f, 3.506f, 3.465f,
+													3.427f, 3.367f, 3.262f, 3.053f, 2.545f};
+				memcpy(OCV_vs_SOC,OCV_vs_SOC_MOLICEL_18650_P28A, sizeof(OCV_vs_SOC_MOLICEL_18650_P28A));
 				break;
 			
-			case PANASONIC_18650_GA:
-				//TO DO : Add lookup tables for different cells
+			case PANASONIC_18650_GA:   //3300mAh
+				static const float OCV_vs_SOC_PANASONIC_18650_GA[NUM_OCV_VS_SOC_POINTS] = 
+													{4.174f, 3.912f, 3.895f, 3.863f, 3.817f, 3.762f,3.714f,3.666f,
+													3.619f, 3.564f, 3.516f, 3.465f, 3.419f, 3.381f, 3.334f, 3.292f,
+													3.241f, 3.172f, 3.071f, 2.878f, 2.501f};
+				memcpy(OCV_vs_SOC, OCV_vs_SOC_PANASONIC_18650_GA, sizeof(OCV_vs_SOC_PANASONIC_18650_GA));
 				break;
 
+			case PANSONIC_18650_BD:    //3180mAh
+				break;
+
+			//TO DO : Add bigger database for different cell types and cell chemistry lookup tables 
 		}
 
 		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();

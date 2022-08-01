@@ -858,11 +858,12 @@ typedef enum {
 } humidityICTypeEnum;
 
 typedef enum {
-	notValid = 0,
+	unavailable = 0,
 	AMS_18650_2500mAh,
 	MOLICEL_21700_P42A,
 	MOLICEL_18650_P28A,
-	PANASONIC_18650_GA
+	PANASONIC_18650_GA,
+	PANSONIC_18650_BD
 } cellTypeEnum;
 
 

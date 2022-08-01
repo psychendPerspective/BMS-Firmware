@@ -305,7 +305,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->noOfCellsSeries					                                 = 18;					// Total number of cells in series in the battery pack
 	configLocation->noOfCellsParallel                              	                 = 1;                      		// Number of cells in parallel
 	configLocation->noOfParallelModules                       	                     = 1;                     		// Number of parallel modules
-	configLocation->batteryCapacity					                                 = 2.50f;				// XXAh battery
+	configLocation->batteryCapacity					                                 = 2.80f;				// XXAh battery
 	configLocation->cellHardUnderVoltage				                             = 2.30f;				// Worst case X.XXV as lowest cell voltage
 	configLocation->cellHardOverVoltage				                                 = 4.20f;				// Worst case X.XXV as highest cell voltage
 	configLocation->cellLCSoftUnderVoltage				                             = 2.70f;				// Lowest cell voltage X.XXV.
@@ -400,7 +400,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->lastICMask					                                     = 0;
 	configLocation->humidityICType 					                                 = 0;
 	configLocation->BMSApplication					                                 = electricVehicle;
-	configLocation->cellTypeUsed              										 = AMS_18650_2500mAh;           //type of cell used to determine OCV_vs_SOC lookup table
+	configLocation->cellTypeUsed              										 = MOLICEL_18650_P28A;           //type of cell used to determine OCV_vs_SOC lookup table
 
 #elif ENNOID_SS
 	configLocation->noOfCellsSeries					= 18;					// Total number of cells in series in the battery pack
