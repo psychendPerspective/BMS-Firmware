@@ -85,7 +85,9 @@ int main(void) {
 		
 
 		if(modPowerElectronicsTask())																						// Handle power electronics task
-			modStateOfChargeProcess();
+    {
+      modStateOfChargeProcess();
+    }
 
     //safety_check_task(); 
     //report_status_task();																						// If there is new data handle SoC estimation

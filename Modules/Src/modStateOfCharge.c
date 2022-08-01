@@ -28,6 +28,7 @@ uint32_t modStateOfChargeLargeCoulombTick;
 uint32_t modStateOfChargeStoreSoCTick;
 
 bool modStateOfChargePowerDownSavedFlag = false;
+bool readSoCfromOCV = false;
 
 modStateOfChargeStructTypeDef* modStateOfChargeInit(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer){
 	modStateOfChargePackStatehandle = packState;
@@ -58,12 +59,12 @@ void modStateOfChargeProcess(void){
 		modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = 0.0f;
 	
 	// Calculate state of charge
-	modStateOfChargeGeneralStateOfCharge.generalStateOfCharge = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh / modStateOfChargeGeneralConfigHandle->batteryCapacity * 100.0f;
+	modStateOfChargeGeneralStateOfCharge.stateofCharge = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh / modStateOfChargeGeneralConfigHandle->batteryCapacity * 100.0f;
 	
-	if(modStateOfChargeGeneralStateOfCharge.generalStateOfCharge >= 100.0f)
-		modStateOfChargeGeneralStateOfCharge.generalStateOfCharge = 100.0f;
+	if(modStateOfChargeGeneralStateOfCharge.stateofCharge >= 100.0f)
+		modStateOfChargeGeneralStateOfCharge.stateofCharge = 100.0f;
 	
-	modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.generalStateOfCharge;
+	modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
 	modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
 	
 	// Store SoC every 'stateOfChargeStoreInterval'
@@ -75,22 +76,29 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 	bool returnVal = false;
 	if(driverSWStorageManagerStateOfChargeEmpty)
 	{
-		// TODO: SoC manager is empy -> Determin SoC from voltage when voltages are available.
+		// TODO: Store type of cell used 
+		//TO DO: check if type of cell has been changed, in order to ignore stored SoC and read from OCV
 		modStateOfChargeStructTypeDef defaultStateOfCharge;
-		defaultStateOfCharge.generalStateOfCharge = 0.0f;
+		defaultStateOfCharge.stateofCharge = 0.0f;
 		defaultStateOfCharge.generalStateOfHealth = 0.0f;
 		defaultStateOfCharge.remainingCapacityAh = 0.0f;
 		defaultStateOfCharge.remainingCapacityWh = 0.0f;
 		
-		driverSWStorageManagerStateOfChargeEmpty = false;
-		driverSWStorageManagerStoreStruct(&defaultStateOfCharge,STORAGE_STATEOFCHARGE);
+		//driverSWStorageManagerStateOfChargeEmpty = false;
+		readSoCfromOCV = true;
+		//driverSWStorageManagerStoreStruct(&defaultStateOfCharge,STORAGE_STATEOFCHARGE);
 		// TODO_EEPROM
 	}
 	
 	modStateOfChargeStructTypeDef tempStateOfCharge;
 	driverSWStorageManagerGetStruct(&tempStateOfCharge,STORAGE_STATEOFCHARGE);
 	
-	modStateOfChargeLoadStateOfCharge();
+	if(modStateOfChargeLoadStateOfCharge())
+		//readSoCfromOCV = false;    //TO DO :implement operational state first
+		readSoCfromOCV = true;
+		driverSWStorageManagerStateOfChargeEmpty = false;
+
+
 	return returnVal;
 };
 
@@ -126,66 +134,73 @@ void modStateOfChargeVoltageEvent(modStateOfChargeVoltageEventTypeDef eventType)
 
 void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer)
 {
-	float OCV_vs_SOC[NUM_OCV_VS_SOC_POINTS] = {0}; //100%,95%,90%,85%,80%,......,5%,0% SoC
-
-	modStateOfChargePackStatehandle = packState;
-	modStateOfChargeGeneralConfigHandle = generalConfigPointer;
-	
-	switch(modStateOfChargeGeneralConfigHandle->cellTypeUsed)
+	//TO DO: check if type of cell has been changed, in order to ignore stored SoC and read from OCV
+	if(readSoCfromOCV)         
 	{
-		case notValid:
-			break;
-		
-		case AMS_18650_2500mAh:
-			static const float OCV_vs_SOC_AMS_18650_2500mAh[NUM_OCV_VS_SOC_POINTS] = 
-												{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.790f, 3.720f,
-												3.650f, 3.580f, 3.510f, 3.440f, 3.370f, 3.300f, 3.230f, 3.160f,
-												3.090f, 3.020f, 2.980f, 2.910f, 2.800f};
-			memcpy(OCV_vs_SOC, OCV_vs_SOC_AMS_18650_2500mAh, sizeof(OCV_vs_SOC_AMS_18650_2500mAh));
-			break;
-		
-		case MOLICEL_21700_P42A:
-			static const float OCV_vs_SOC_MOLICEL_21700_P42A[NUM_OCV_VS_SOC_POINTS] = 
-												{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.880f, 3.820f,
-												3.810f, 3.800f, 3.780f, 3.740f, 3.720f, 3.710f, 3.690f, 3.660f,
-												3.650f, 3.020f, 2.980f, 2.910f, 2.800f};
-			memcpy(OCV_vs_SOC, OCV_vs_SOC_MOLICEL_21700_P42A, sizeof(OCV_vs_SOC_MOLICEL_21700_P42A));
-			break;
-		
-		case MOLICEL_18650_P28A:
-			//TO DO : Add lookup tables for different cells
-			break;
-		
-		case PANASONIC_18650_GA:
-			//TO DO : Add lookup tables for different cells
-			break;
+		float OCV_vs_SOC[NUM_OCV_VS_SOC_POINTS] = {0}; //100%,95%,90%,85%,80%,......,5%,0% SoC
 
-	}
-
-	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
-	modPowerElectronicsCalculateCellStats();
-	modPowerElectronicsCellMonitorsStartCellConversion();
-
-	for(int i = 0 ; i < NUM_OCV_VS_SOC_POINTS; i++)
-	{
-		if(OCV_vs_SOC[i] <= modStateOfChargePackStatehandle->cellVoltageAverage )
+		modStateOfChargePackStatehandle = packState;
+		modStateOfChargeGeneralConfigHandle = generalConfigPointer;
+		
+		switch(modStateOfChargeGeneralConfigHandle->cellTypeUsed)
 		{
-			if(i == 0)
-			{
-				modStateOfChargeGeneralStateOfCharge.generalStateOfCharge = 100.0f;
-			}
-			else
-			{
-				//Calculate Remaining capacity based on current OCV(CVaverage) by comparing lookup table values 
-				modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = 
-				modStateOfChargeGeneralConfigHandle->batteryCapacity / (NUM_OCV_VS_SOC_POINTS - 1.0) *
-				(NUM_OCV_VS_SOC_POINTS - 1.0 - i + (modStateOfChargePackStatehandle->cellVoltageAverage - OCV_vs_SOC[i])/(OCV_vs_SOC[i-1] - OCV_vs_SOC[i]));
+			case notValid:
+				break;
+			
+			case AMS_18650_2500mAh:
+				static const float OCV_vs_SOC_AMS_18650_2500mAh[NUM_OCV_VS_SOC_POINTS] = 
+													{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.790f, 3.720f,
+													3.650f, 3.580f, 3.510f, 3.440f, 3.370f, 3.300f, 3.230f, 3.160f,
+													3.090f, 3.020f, 2.980f, 2.910f, 2.800f};
+				memcpy(OCV_vs_SOC, OCV_vs_SOC_AMS_18650_2500mAh, sizeof(OCV_vs_SOC_AMS_18650_2500mAh));
+				break;
+			
+			case MOLICEL_21700_P42A: //TO DO : Debug this case 
+				static const float OCV_vs_SOC_MOLICEL_21700_P42A[NUM_OCV_VS_SOC_POINTS] = 
+													{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.880f, 3.820f,
+													3.810f, 3.800f, 3.780f, 3.740f, 3.720f, 3.710f, 3.690f, 3.660f,
+													3.650f, 3.520f, 2.980f, 2.910f, 2.800f};
+				memcpy(OCV_vs_SOC, OCV_vs_SOC_MOLICEL_21700_P42A, sizeof(OCV_vs_SOC_MOLICEL_21700_P42A));
+				break;
+			
+			case MOLICEL_18650_P28A:
+				//TO DO : Add lookup tables for different cells
+				break;
+			
+			case PANASONIC_18650_GA:
+				//TO DO : Add lookup tables for different cells
+				break;
 
-				//calculate SoC based on nominal battery capacity 
-				modStateOfChargeGeneralStateOfCharge.generalStateOfCharge = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh / modStateOfChargeGeneralConfigHandle->batteryCapacity * 100.0f;
+		}
 
+		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
+		modPowerElectronicsCalculateCellStats();
+		modPowerElectronicsCellMonitorsStartCellConversion();
+
+		for(int i = 0 ; i < NUM_OCV_VS_SOC_POINTS; i++)
+		{
+			if(OCV_vs_SOC[i] <= modStateOfChargePackStatehandle->cellVoltageAverage )
+			{
+				if(i == 0)
+				{
+					modStateOfChargeGeneralStateOfCharge.stateofCharge = 100.0f;
+				}
+				else
+				{
+					//Calculate Remaining capacity based on current OCV(CVaverage) by comparing lookup table values 
+					modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = 
+					modStateOfChargeGeneralConfigHandle->batteryCapacity / (NUM_OCV_VS_SOC_POINTS - 1.0) *
+					(NUM_OCV_VS_SOC_POINTS - 1.0 - i + (modStateOfChargePackStatehandle->cellVoltageAverage - OCV_vs_SOC[i])/(OCV_vs_SOC[i-1] - OCV_vs_SOC[i]));
+
+					//calculate SoC based on nominal battery capacity 
+					modStateOfChargeGeneralStateOfCharge.stateofCharge = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh / modStateOfChargeGeneralConfigHandle->batteryCapacity * 100.0f;
+				}
 			}
 		}
+		modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
+		modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
+		driverSWStorageManagerStoreStruct(&modStateOfChargeGeneralStateOfCharge,STORAGE_STATEOFCHARGE);
+		driverSWStorageManagerStateOfChargeEmpty = false;
 	}
 
 };

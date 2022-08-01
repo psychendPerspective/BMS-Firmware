@@ -71,7 +71,7 @@ void modTerminalProcessString(char *str) {
 		modCommandsPrintf("Pack current          : %.2fA",packState.packCurrent);
 		modCommandsPrintf("LC Load voltage       : %.2fV",packState.loCurrentLoadVoltage);	
 		modCommandsPrintf("Low  current          : %.2fA",packState.loCurrentLoadCurrent);	
-		modCommandsPrintf("State of charge       : %.1f%%",generalStateOfCharge->generalStateOfCharge);
+		modCommandsPrintf("State of charge       : %.1f%%",generalStateOfCharge->stateofCharge);
 		modCommandsPrintf("Remaining capacity    : %.2fAh",generalStateOfCharge->remainingCapacityAh);
 		
 		switch(modOperationalStateCurrentState) {

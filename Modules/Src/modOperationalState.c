@@ -137,7 +137,7 @@ void modOperationalStateTask(void) {
 			}
 			
 			modOperationalStateUpdateStates();
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->generalStateOfCharge;
+			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
 			modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
 			modOperationalStateDisplayData.ChargerVoltage = fabs(modOperationalStatePackStatehandle->chargerVoltage);
 			modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
@@ -256,7 +256,7 @@ void modOperationalStateTask(void) {
 			
 			modOperationalStateUpdateStates();
 			
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->generalStateOfCharge;
+			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
 			modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
 			modOperationalStateDisplayData.PackVoltage = fabs(modOperationalStatePackStatehandle->packVoltage);
 			modOperationalStateDisplayData.HighestTemp = fabs(modOperationalStatePackStatehandle->tempBatteryHigh);
@@ -397,7 +397,7 @@ void modOperationalStateTask(void) {
 			}
 			
 			modOperationalStateUpdateStates();
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->generalStateOfCharge;
+			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
 			modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
 			modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
 			modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);

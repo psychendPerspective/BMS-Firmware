@@ -24,12 +24,13 @@
 #include "stdint.h"
 #include "stdbool.h"
 #include "modPowerElectronics.h"
-#include "modConfig.h"
+
 
 #define NUM_OCV_VS_SOC_POINTS 21
 
+
 typedef struct {
-	float generalStateOfCharge;
+	float stateofCharge;
 	float generalStateOfHealth;
 	float remainingCapacityAh;
 	float remainingCapacityWh;
