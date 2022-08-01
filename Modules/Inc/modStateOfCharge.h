@@ -26,6 +26,8 @@
 #include "modPowerElectronics.h"
 #include "modConfig.h"
 
+#define NUM_OCV_VS_SOC_POINTS 21
+
 typedef struct {
 	float generalStateOfCharge;
 	float generalStateOfHealth;
@@ -38,6 +40,7 @@ typedef enum {
 	EVENT_EMPTY,
 } modStateOfChargeVoltageEventTypeDef;
 
+
 modStateOfChargeStructTypeDef* modStateOfChargeInit(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer);
 void modStateOfChargeProcess(void);
 bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void);
@@ -45,5 +48,6 @@ bool modStateOfChargeStoreStateOfCharge(void);
 bool modStateOfChargeLoadStateOfCharge(void);
 bool modStateOfChargePowerDownSave(void);
 void modStateOfChargeVoltageEvent(modStateOfChargeVoltageEventTypeDef eventType);
+void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer);
 
 #endif

@@ -48,7 +48,7 @@
 #define NoOfTempSensors               	14
 #define VinErrorThreshold             	10
 
-#define zeroCurrentCalibrationTime      25
+#define zeroCurrentCalibrationTime      3
 
 typedef enum {
 	TEMP_EXT_LTC_NTC0 = 0,									// EXT on master BMS on LTC

@@ -24,6 +24,7 @@
 #include "math.h"
 #include "mainDataTypes.h"
 #include "modDelay.h"
+#include "generalDefines.h"
 
 
 /*

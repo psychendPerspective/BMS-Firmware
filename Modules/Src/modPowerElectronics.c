@@ -397,8 +397,16 @@ void modPowerElectronicsCalculateCellStats(void) {
 
 	}
 	
+	#ifndef BMS_16S_CONFIG
 	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
 	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
+	#endif
+
+	#if BMS_16S_CONFIG
+	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(16 *modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
+	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
+	#endif
+
 };
 
 void modPowerElectronicsSubTaskBalancing(void) {
@@ -680,7 +688,9 @@ void modPowerElectronicsCalcTempStats(void) {
 			tempBMSSumCount++;
 		}
 	}
+	#endif
 
+	#ifndef BMS_16S_CONFIG
 	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
 	
 	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
@@ -1162,14 +1172,31 @@ void modPowerElectronicsTerminalCellConnectionTest(int argc, const char **argv) 
 	// Start of general voltage test
 	modCommandsPrintf("---  Starting voltage measure test  ---");	
 	modCommandsPrintf("Pack voltage Direct   : %.2fV",modPowerElectronicsPackStateHandle->packVoltage);
+	#ifndef BMS_16S_CONFIG
 	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries);
-	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage));
+	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage));		
+	#endif
+	#if BMS_16S_CONFIG
+	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*16);
+	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage));
+	#endif
 	
+	#ifndef BMS_16S_CONFIG
 	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
 		passFail = overAllPassFail = false;
 	}else{
 		passFail = true;
 	}
+	#endif
+
+	#if BMS_16S_CONFIG
+	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
+		passFail = overAllPassFail = false;
+	}else{
+		passFail = true;
+	}
+	#endif
+
 	modCommandsPrintf("Result                : %s",passFail ? "Pass" : "Fail");// Tell whether test passed / failed
 	
 	
@@ -1321,7 +1348,12 @@ void modPowerElectronicsSamplePackVoltage(float *voltagePointer) {
 				driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,voltagePointer,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
 			break;
 		case sourcePackVoltageSumOfIndividualCellVoltages:
+			#ifndef BMS_16S_CONFIG
 			*voltagePointer = modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage;
+			#endif
+			#ifdef BMS_16S_CONFIG
+			*voltagePointer = 16 * modPowerElectronicsPackStateHandle->cellVoltageAverage;
+			#endif
 			break;
 		case sourcePackVoltageCANDieBieShunt:
 			*voltagePointer = 0.0f;

@@ -438,9 +438,19 @@ bool driverSWLTC6804ReadAuxVoltagesArray(float auxVoltagesArray[][driverSWLTC680
 
   for(uint8_t modulePointer = 0; modulePointer < driverSWLTC6804TotalNumberOfICs; modulePointer++) 
   {
-		for(uint8_t auxPointer = 0; auxPointer < driverSWLTC6804MaxNoOfTempSensorPerModule; auxPointer++){
+		for(uint8_t auxPointer = 0; auxPointer < driverSWLTC6804MaxNoOfTempSensorPerModule; auxPointer++)
+		{
 			if(auxVoltageArrayCodes[modulePointer][auxPointer]*0.0001f < 10.0f)
-			  auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				#ifdef BMS_16S_CONFIG
+				if(auxPointer == 0 || auxPointer == 1)
+					auxVoltagesArray[modulePointer][auxPointer] = 0.0f;
+				else
+					auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				#endif
+
+				#ifndef BMS_16S_CONFIG
+					auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				#endif
 			else
 				dataValid = false;
 		}

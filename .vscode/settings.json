@@ -11,6 +11,8 @@
         "modcan.h": "c",
         "libfirfilter.h": "c",
         "libcrc.h": "c",
-        "libekf.h": "c"
+        "libekf.h": "c",
+        "modterminal.h": "c",
+        "modconfig.h": "c"
     }
 }

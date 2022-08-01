@@ -62,7 +62,12 @@ void modTerminalProcessString(char *str) {
 		 
 		modCommandsPrintf("-----Battery Pack Status-----");		
 		modCommandsPrintf("Pack voltage Direct   : %.2fV",packState.packVoltage);
+		#ifndef BMS_16S_CONFIG
 		modCommandsPrintf("Pack voltage CVAverage: %.2fV",packState.cellVoltageAverage*generalConfig->noOfCellsSeries);		
+		#endif
+		#if BMS_16S_CONFIG
+		modCommandsPrintf("Pack voltage CVAverage: %.2fV",packState.cellVoltageAverage*16);
+		#endif
 		modCommandsPrintf("Pack current          : %.2fA",packState.packCurrent);
 		modCommandsPrintf("LC Load voltage       : %.2fV",packState.loCurrentLoadVoltage);	
 		modCommandsPrintf("Low  current          : %.2fA",packState.loCurrentLoadCurrent);	

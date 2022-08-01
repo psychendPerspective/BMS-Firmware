@@ -305,7 +305,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->noOfCellsSeries					                                 = 18;					// Total number of cells in series in the battery pack
 	configLocation->noOfCellsParallel                              	                 = 1;                      		// Number of cells in parallel
 	configLocation->noOfParallelModules                       	                     = 1;                     		// Number of parallel modules
-	configLocation->batteryCapacity					                                 = 22.00f;				// XXAh battery
+	configLocation->batteryCapacity					                                 = 2.50f;				// XXAh battery
 	configLocation->cellHardUnderVoltage				                             = 2.30f;				// Worst case X.XXV as lowest cell voltage
 	configLocation->cellHardOverVoltage				                                 = 4.20f;				// Worst case X.XXV as highest cell voltage
 	configLocation->cellLCSoftUnderVoltage				                             = 2.70f;				// Lowest cell voltage X.XXV.
@@ -319,7 +319,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->cellThrottleLowerMargin				                             = 0.50f;				// Margin of throttle from lower soft limits.	
 	configLocation->packVoltageDataSource                          	                 = sourcePackVoltageSumOfIndividualCellVoltages; 		// Packvoltage source.
 	configLocation->packCurrentDataSource                                            = sourceHALLeffectSensor; 		// The pack current is the same as the current through the low current shunt
-	configLocation->buzzerSignalSource                             	                 = buzzerSourceOn;         		// Stores what source shoud be taken to trigger
+	configLocation->buzzerSignalSource                             	                 = buzzerSourceOff;         		// Stores what source shoud be taken to trigger
 	configLocation->buzzerSignalPersistant                         	                 = false;                    		// Stores whether the buzzer should stay on after triggering
   	configLocation->shuntLCFactor                                  	                 = -0.07f;              			// Shunt factor low current
 	configLocation->voltageLCFactor	                               	                 = 47.5f;                   		// Pack voltage factor 
@@ -362,7 +362,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->notUsedCurrentThreshold				                             = 1.0f;					// If abs(packcurrent) < X.XA consider pack as not used.
 	configLocation->notUsedTimeout					                                 = 20*60*1000;				// If pack is not used for longer than XX minutes disable bms.
 	configLocation->stateOfChargeStoreInterval			                             = 60*1000;				// Interval in ms to store state of charge information.
-	configLocation->stateOfChargeMethod                            	                 = socCoulomb;				// Use coulomb counting for SoC calculation
+	configLocation->stateOfChargeMethod                            	                 = socCoulombAndCellVoltage;				// Use OCV vs SoC for inital SoC and then use coulomb counting for SoC calculation
 	configLocation->CANID						                                     = 10;					// CAN ID for CAN communication.
 	configLocation->CANIDStyle                                     	                 = CANIDStyleVESC;          		// CAN ID default Style.
 	configLocation->canBusSpeed                                    	                 = canSpeedBaud500k;        		// 500k CAN baud
@@ -371,7 +371,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->tempEnableMaskBMS                              	                 = 0x0001;				// Bitwise select what sensor to enable for the BMS (internal sensors).
 	configLocation->tempEnableMaskBattery                          	                 = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
   	configLocation->tempEnableMaskExpansion                         	             = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
-	configLocation->noOfTempSensorPerModule            		                         = 7;					// Number of temperature sensors monitored per LTC68XX
+	configLocation->noOfTempSensorPerModule            		                         = 9;					// Number of temperature sensors monitored per LTC68XX
 	configLocation->noOfExpansionBoard       			                             = 0;					// Number of expansion board
 	configLocation->noOfTempSensorPerExpansionBoard          	                     = 0;					// Number of temperature sensors monitored per expansion board
 	configLocation->LCUseDischarge                                  	             = disabled;                 		// Enable or disable the solid state output
@@ -400,6 +400,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->lastICMask					                                     = 0;
 	configLocation->humidityICType 					                                 = 0;
 	configLocation->BMSApplication					                                 = electricVehicle;
+	configLocation->cellTypeUsed              										 = AMS_18650_2500mAh;           //type of cell used to determine OCV_vs_SOC lookup table
 
 #elif ENNOID_SS
 	configLocation->noOfCellsSeries					= 18;					// Total number of cells in series in the battery pack

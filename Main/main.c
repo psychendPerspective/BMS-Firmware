@@ -1,15 +1,16 @@
 /*
-	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-	This file is part of the DieBieMS/ENNOID-BMS firmware.
+	This file is part of the Xanadu BMS firmware.
 
-	The DieBieMS/ENNOID-BMS firmware is free software: you can redistribute it and/or modify
+	  The Xanadu BMS firmware is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    The DieBieMS/ENNOID-BMS firmware is distributed in the hope that it will be useful,
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -59,7 +60,7 @@ int main(void) {
 	generalStateOfCharge     = modStateOfChargeInit(&packState,generalConfig);// Tell EEPROM the needed size for StatOfChargeStruct
 	driverSWStorageManagerInit();																							// Initializes EEPROM Memory
 	modConfigStoreAndLoadDefaultConfig();																			// Store default config if needed -> load config from EEPROM
-	modStateOfChargeStoreAndLoadDefaultStateOfCharge();												// Determin SoC from cell voltage if needed -> load StateOfCharge from EEPROM
+	modStateOfChargeStoreAndLoadDefaultStateOfCharge();												// load StateOfCharge parameters from EEPROM
 	// Until here
 	
 	modPowerStateSetConfigHandle(generalConfig);                              // Tell the power state what input method is used en power on mode.
@@ -68,9 +69,9 @@ int main(void) {
 	modCANInit(&packState,generalConfig);																			// Will act on CAN message requests
 	modEffectInit();																													// Controls the effects on LEDs + buzzer
 	modEffectChangeState(STAT_LED_DEBUG,STAT_FLASH);													// Set Debug LED to blinking mode	
-	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState	
+	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
+  modGetStateofChargeFromOCV(&packState, generalConfig);	                  // calculate SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
-  	
 	//safety_check_init(&packState, generalConfig);
   	//report_status_init(&packState); 
 		
@@ -82,6 +83,7 @@ int main(void) {
 		modCANTask();
 		mainWatchDogReset();
 		
+
 		if(modPowerElectronicsTask())																						// Handle power electronics task
 			modStateOfChargeProcess();
 

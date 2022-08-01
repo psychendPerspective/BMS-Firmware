@@ -857,8 +857,13 @@ typedef enum {
 	htc1080
 } humidityICTypeEnum;
 
-
-
+typedef enum{
+	notValid = 0,
+	AMS_18650_2500mAh,
+	MOLICEL_21700_P42A,
+	MOLICEL_18650_P28A,
+	PANASONIC_18650_GA
+}cellTypeEnum;
 
 
 typedef struct __attribute__((packed)) {
