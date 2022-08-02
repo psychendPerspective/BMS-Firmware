@@ -1466,9 +1466,9 @@ void modPowerElectronicsZeroCurrentConversion(void)
 				break;
 			}
 		}
-	driverSWLTC6804ResetCellVoltageRegisters();
-	driverSWLTC6804ResetAuxRegisters();
-	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	// driverSWLTC6804ResetCellVoltageRegisters();
+	// driverSWLTC6804ResetAuxRegisters();
+	// driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
 	}
 }
 

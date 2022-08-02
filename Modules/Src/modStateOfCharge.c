@@ -29,6 +29,7 @@ uint32_t modStateOfChargeStoreSoCTick;
 
 bool modStateOfChargePowerDownSavedFlag = false;
 bool readSoCfromOCV = false;
+bool ocvInterpolatedFlag = false;
 
 modStateOfChargeStructTypeDef* modStateOfChargeInit(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer){
 	modStateOfChargePackStatehandle = packState;
@@ -66,7 +67,7 @@ void modStateOfChargeProcess(void){
 	
 	modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
 	modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
-	
+
 	// Store SoC every 'stateOfChargeStoreInterval'
 	if(modDelayTick1ms(&modStateOfChargeStoreSoCTick,modStateOfChargeGeneralConfigHandle->stateOfChargeStoreInterval) && !modStateOfChargePowerDownSavedFlag && (lastGeneralStateOfCharge.remainingCapacityAh != modStateOfChargeGeneralStateOfCharge.remainingCapacityAh))
 		modStateOfChargeStoreStateOfCharge();
@@ -94,7 +95,7 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 	driverSWStorageManagerGetStruct(&tempStateOfCharge,STORAGE_STATEOFCHARGE);
 	
 	if(modStateOfChargeLoadStateOfCharge())
-		//readSoCfromOCV = false;    //TO DO :implement operational state first
+		//readSoCfromOCV = false;    //TO DO :implement storing type of cell, and if type of cell has changed, set readSoCfromOCV false
 		readSoCfromOCV = true;
 		driverSWStorageManagerStateOfChargeEmpty = false;
 
@@ -132,15 +133,52 @@ void modStateOfChargeVoltageEvent(modStateOfChargeVoltageEventTypeDef eventType)
 	}
 };
 
-void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer)
+
+
+float interpolate(const float a[], const float b[], size_t size, float value_a)
 {
+    if (a[0] < a[size - 1]) {
+        for (unsigned int i = 0; i < size; i++) {
+            if (value_a <= a[i]) {
+                if (i == 0) {
+                    return b[0]; // value_a smaller than first element
+                }
+                else {
+                    return b[i - 1] + (b[i] - b[i - 1]) * (value_a - a[i - 1]) / (a[i] - a[i - 1]);
+                }
+            }
+        }
+        return b[size - 1]; // value_a larger than last element
+    }
+    else {
+        for (unsigned int i = 0; i < size; i++) {
+            if (value_a >= a[i]) {
+                if (i == 0) {
+                    return b[0]; // value_a smaller than first element
+                }
+                else {
+                    return b[i - 1] + (b[i] - b[i - 1]) * (value_a - a[i - 1]) / (a[i] - a[i - 1]);
+                }
+            }
+        }
+        return b[size - 1]; // value_a larger than last element
+    }
+};
+
+void modGetStateofChargeFromOCV()
+{
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
+	modPowerElectronicsCalculateCellStats();
+	modPowerElectronicsCellMonitorsStartCellConversion();
+
 	//TO DO: check if type of cell has been changed, in order to ignore stored SoC and read from OCV
 	if(readSoCfromOCV)         
 	{
 		float OCV_vs_SOC[NUM_OCV_VS_SOC_POINTS] = {0}; //100%,95%,90%,85%,80%,......,5%,0% SoC
+		static const float soc_pct[NUM_OCV_VS_SOC_POINTS] = { 100.0F, 95.0F, 90.0F, 85.0F, 80.0F, 85.0F, 70.0F,
+                                 							65.0F,  60.0F, 55.0F, 50.0F, 45.0F, 40.0F, 35.0F,
+                                 							30.0F,  25.0F, 20.0F, 15.0F, 10.0F, 5.0F,  0.0F };
 
-		modStateOfChargePackStatehandle = packState;
-		modStateOfChargeGeneralConfigHandle = generalConfigPointer;
 		
 		switch(modStateOfChargeGeneralConfigHandle->cellTypeUsed)
 		{ //Extract lookup table based on discharge curves: https://automeris.io/WebPlotDigitizer/
@@ -150,13 +188,13 @@ void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, 
 			
 			case AMS_18650_2500mAh:
 				static const float OCV_vs_SOC_AMS_18650_2500mAh[NUM_OCV_VS_SOC_POINTS] = 
-													{4.190f, 4.090f, 4.050f, 3.980f, 3.910f, 3.860f, 3.790f, 3.720f,
-													3.650f, 3.580f, 3.510f, 3.440f, 3.370f, 3.300f, 3.230f, 3.160f,
-													3.090f, 3.020f, 2.980f, 2.910f, 2.800f};
+													{4.188f, 4.063f, 4.013f, 3.960f, 3.902f, 3.857f, 3.816f, 3.776f, 
+													3.735f, 3.689f, 3.649f, 3.610f, 3.573f, 3.542f, 3.506f, 3.465f,
+													3.427f, 3.367f, 3.262f, 3.053f, 2.545f};
 				memcpy(OCV_vs_SOC, OCV_vs_SOC_AMS_18650_2500mAh, sizeof(OCV_vs_SOC_AMS_18650_2500mAh));
 				break;
 			
-			case MOLICEL_21700_P42A: //TO DO : Debug this case 
+			case MOLICEL_21700_P42A: //4200mAh
 				static const float OCV_vs_SOC_MOLICEL_21700_P42A[NUM_OCV_VS_SOC_POINTS] = 
 													{4.170f, 4.058f, 4.032f, 4.008f, 3.955f, 3.895f,3.847f, 3.803f, 
 													3.761f, 3.717f, 3.668f, 3.631f, 3.588f, 3.551f, 3.507f, 3.467f, 
@@ -164,7 +202,7 @@ void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, 
 				memcpy(OCV_vs_SOC, OCV_vs_SOC_MOLICEL_21700_P42A, sizeof(OCV_vs_SOC_MOLICEL_21700_P42A));
 				break;
 			
-			case MOLICEL_18650_P28A:  //
+			case MOLICEL_18650_P28A:  //2800mAh
 				static const float OCV_vs_SOC_MOLICEL_18650_P28A[NUM_OCV_VS_SOC_POINTS] = 
 													{4.188f, 4.063f, 4.013f, 3.960f, 3.902f, 3.857f, 3.816f, 3.776f, 
 													3.735f, 3.689f, 3.649f, 3.610f, 3.573f, 3.542f, 3.506f, 3.465f,
@@ -181,35 +219,44 @@ void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, 
 				break;
 
 			case PANSONIC_18650_BD:    //3180mAh
+				static const float OCV_vs_SOC_PANSONIC_18650_BD[NUM_OCV_VS_SOC_POINTS] = 
+													{4.196f, 4.070f, 4.011f, 3.946f, 3.893f, 3.847f, 3.803f, 3.755f,
+													3.705f, 3.663f, 3.620f, 3.589f, 3.554f, 3.525f, 3.492f, 3.455f, 
+													3.408f, 3.346f, 3.274f, 3.112f, 2.500f};
+				memcpy(OCV_vs_SOC, OCV_vs_SOC_PANSONIC_18650_BD, sizeof(OCV_vs_SOC_PANSONIC_18650_BD));
 				break;
 
 			//TO DO : Add bigger database for different cell types and cell chemistry lookup tables 
 		}
-
-		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
-		modPowerElectronicsCalculateCellStats();
-		modPowerElectronicsCellMonitorsStartCellConversion();
+		
 
 		for(int i = 0 ; i < NUM_OCV_VS_SOC_POINTS; i++)
 		{
-			if(OCV_vs_SOC[i] <= modStateOfChargePackStatehandle->cellVoltageAverage )
+			if((OCV_vs_SOC[i] <= modStateOfChargePackStatehandle->cellVoltageAverage) && (!ocvInterpolatedFlag) )
 			{
 				if(i == 0)
 				{
 					modStateOfChargeGeneralStateOfCharge.stateofCharge = 100.0f;
+					ocvInterpolatedFlag = true;
 				}
 				else
 				{
 					//Calculate Remaining capacity based on current OCV(CVaverage) by comparing lookup table values 
-					modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = 
-					modStateOfChargeGeneralConfigHandle->batteryCapacity / (NUM_OCV_VS_SOC_POINTS - 1.0) *
-					(NUM_OCV_VS_SOC_POINTS - 1.0 - i + (modStateOfChargePackStatehandle->cellVoltageAverage - OCV_vs_SOC[i])/(OCV_vs_SOC[i-1] - OCV_vs_SOC[i]));
+					modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = (double)
+					((modStateOfChargeGeneralConfigHandle->batteryCapacity) / (NUM_OCV_VS_SOC_POINTS - 1.0)) *
+					(NUM_OCV_VS_SOC_POINTS - 1.0 - i + ((modStateOfChargePackStatehandle->cellVoltageAverage - OCV_vs_SOC[i])/(OCV_vs_SOC[i-1] - OCV_vs_SOC[i])));
 
 					//calculate SoC based on nominal battery capacity 
 					modStateOfChargeGeneralStateOfCharge.stateofCharge = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh / modStateOfChargeGeneralConfigHandle->batteryCapacity * 100.0f;
+					ocvInterpolatedFlag = true;
+
 				}
 			}
 		}
+
+		// modStateOfChargeGeneralStateOfCharge.stateofCharge = interpolate(OCV_vs_SOC, soc_pct, NUM_OCV_VS_SOC_POINTS, modStateOfChargePackStatehandle->cellVoltageAverage);
+		// modStateOfChargeGeneralStateOfCharge.remainingCapacityAh = (modStateOfChargeGeneralStateOfCharge.stateofCharge * modStateOfChargeGeneralConfigHandle->batteryCapacity) / 100.0f;
+
 		modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
 		modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
 		driverSWStorageManagerStoreStruct(&modStateOfChargeGeneralStateOfCharge,STORAGE_STATEOFCHARGE);

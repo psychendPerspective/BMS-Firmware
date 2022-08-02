@@ -49,6 +49,7 @@ bool modStateOfChargeStoreStateOfCharge(void);
 bool modStateOfChargeLoadStateOfCharge(void);
 bool modStateOfChargePowerDownSave(void);
 void modStateOfChargeVoltageEvent(modStateOfChargeVoltageEventTypeDef eventType);
-void modGetStateofChargeFromOCV(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer);
+float interpolate(const float a[], const float b[], size_t size, float value_a);
+void modGetStateofChargeFromOCV();
 
 #endif

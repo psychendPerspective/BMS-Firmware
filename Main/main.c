@@ -70,7 +70,7 @@ int main(void) {
 	modEffectInit();																													// Controls the effects on LEDs + buzzer
 	modEffectChangeState(STAT_LED_DEBUG,STAT_FLASH);													// Set Debug LED to blinking mode	
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
-  modGetStateofChargeFromOCV(&packState, generalConfig);	                  // calculate SoC from Open Cirucit Voltage 
+  modGetStateofChargeFromOCV();	                                            // calculate SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
 	//safety_check_init(&packState, generalConfig);
   	//report_status_init(&packState); 
