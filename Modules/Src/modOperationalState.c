@@ -19,6 +19,7 @@
  */
 
 #include "modOperationalState.h"
+#include "modTerminal.h"
 
 OperationalStateTypedef modOperationalStateLastState;
 OperationalStateTypedef modOperationalStateCurrentState;
@@ -70,6 +71,7 @@ void modOperationalStateTask(void) {
 				  case opStateChargingModeCharging:
 						modOperationalStateSetNewState(OP_STATE_CHARGING);								// Go to charge state
 						modEffectChangeState(STAT_LED_POWER,STAT_FLASH);									// Flash power LED when charging
+						modCommandsPrintf("Charger detected\n");
 						modOperationalStateChargerDisconnectDetectDelay = HAL_GetTick();
 						break;
 					case opStateChargingModeNormal:
@@ -115,6 +117,7 @@ void modOperationalStateTask(void) {
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}
 			modPowerElectronicsSetCharge(true);
+			modCommandsPrintf("Charger loop\n");
 			if(modOperationalStatePackStatehandle->packCurrent >= 0.5f || modOperationalStatePackStatehandle->packCurrent >= modOperationalStateGeneralConfigHandle->chargerEnabledThreshold){
 				modPowerElectronicsSetChargePFET(true);
 			}else{

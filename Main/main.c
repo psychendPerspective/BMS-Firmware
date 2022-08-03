@@ -72,6 +72,7 @@ int main(void) {
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
   modGetStateofChargeFromOCV();	                                            // calculate SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
+  
 	//safety_check_init(&packState, generalConfig);
   	//report_status_init(&packState); 
 		

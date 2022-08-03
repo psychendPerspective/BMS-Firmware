@@ -121,7 +121,7 @@ bool modPowerStateGetButtonPressedState(void) {
 bool modPowerStateChargerDetected(void) {
 	static bool chargeDetect = false;
 	chargeDetect = driverHWPowerStateReadInput(P_STAT_CHARGE_DETECT);
-	return chargeDetect;
+	return chargeDetect;             //charge detect GPIO pulls high when charger is detected
 };
 
 bool modPowerStatePowerdownRequest(void) {

@@ -13,6 +13,7 @@
         "libcrc.h": "c",
         "libekf.h": "c",
         "modterminal.h": "c",
-        "modconfig.h": "c"
+        "modconfig.h": "c",
+        "modoperationalstate.h": "c"
     }
 }
