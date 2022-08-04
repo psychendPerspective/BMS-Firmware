@@ -80,10 +80,16 @@ void modOperationalStateTask(void) {
 						modEffectChangeState(STAT_LED_POWER,STAT_SET);										// Turn LED on in normal operation
 						break;
 				}
-			}else if(modPowerStateButtonPressedOnTurnon()) {												// Check if button was pressen on turn-on
+			}
+			else if(modPowerStateButtonPressedOnTurnon()) 
+			{																							// Check if button was pressen on turn-on
+				modCommandsPrintf("Power Button detected\n");
 				modOperationalStateSetNewState(OP_STATE_PRE_CHARGE);									// Prepare to goto operational state
 				modEffectChangeState(STAT_LED_POWER,STAT_SET);												// Turn LED on in normal operation
-			}else if(modOperationalStateNewState == OP_STATE_INIT){								  // USB or CAN origin of turn-on
+				break;
+			}
+			else if(modOperationalStateNewState == OP_STATE_INIT)
+			{								  // USB or CAN origin of turn-on
 				switch(modOperationalStateGeneralConfigHandle->externalEnableOperationalState){
 					case opStateExtNormal:
 						modOperationalStateSetNewState(OP_STATE_PRE_CHARGE);							// Prepare to goto normal operational state
@@ -96,8 +102,11 @@ void modOperationalStateTask(void) {
 				modEffectChangeState(STAT_LED_POWER,STAT_SET);												// Turn LED on in normal operation
 			}
 			
-			if(modDelayTick1ms(&modOperationalStateStartupDelay,modOperationalStateGeneralConfigHandle->displayTimeoutSplashScreen)) {// Wait for a bit than update state. Also check voltage after main fuse? followed by going to error state if blown?		
-				if(!modOperationalStatePackStatehandle->disChargeLCAllowed && !modPowerStateChargerDetected()) {						// If discharge is not allowed
+			if(modDelayTick1ms(&modOperationalStateStartupDelay,modOperationalStateGeneralConfigHandle->displayTimeoutSplashScreen)) 
+			{// Wait for a bit than update state		
+				if(!modOperationalStatePackStatehandle->disChargeLCAllowed && !modPowerStateChargerDetected()) 
+				{																			// If discharge is not allowed
+					modCommandsPrintf("Error state detected: %d, %d \n",modOperationalStatePackStatehandle->disChargeLCAllowed,modPowerStateChargerDetected());
 					modOperationalStateSetNewState(OP_STATE_ERROR);							// Then the battery is dead
 					modOperationalStateBatteryDeadDisplayTime = HAL_GetTick();
 				}
@@ -152,15 +161,21 @@ void modOperationalStateTask(void) {
 			// in case of timeout: disable pre charge & go to error state
 			if(modOperationalStateLastState != modOperationalStateCurrentState) { 	  // If discharge is not allowed pre-charge will not be enabled, therefore reset timeout every task call. Also reset on first entry
 				modOperationalStatePreChargeTimeout = HAL_GetTick();										// Reset timeout
+				modCommandsPrintf("In loop 1 \n");
 				modPowerElectronicsSetDisCharge(false);
 				modPowerElectronicsSetCharge(false);
 			}
 		
 			if(modOperationalStatePackStatehandle->disChargeLCAllowed || modOperationalStateForceOn)
+			{
 				modPowerElectronicsSetPreCharge(true);
-			else{
+				modCommandsPrintf("In loop 2 \n");
+			}
+			else
+			{
 				modPowerElectronicsSetPreCharge(false);
 				modOperationalStatePreChargeTimeout = HAL_GetTick();
+				modCommandsPrintf("In loop 3 \n");
 				if(modOperationalStateGeneralConfigHandle->buzzerSignalSource)
 					modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);	
 			}
@@ -170,10 +185,12 @@ void modOperationalStateTask(void) {
 				}else{
 					modOperationalStateSetNewState(OP_STATE_LOAD_ENABLED);					// Goto normal load enabled operation
 				}
-			}else if(modDelayTick1ms(&modOperationalStatePreChargeTimeout,modOperationalStateGeneralConfigHandle->timeoutLCPreCharge)){
+			}
+			else if(modDelayTick1ms(&modOperationalStatePreChargeTimeout,modOperationalStateGeneralConfigHandle->timeoutLCPreCharge)){
 				if(modOperationalStateGeneralConfigHandle->LCUsePrecharge>=1){
 					modOperationalStateSetNewState(OP_STATE_ERROR_PRECHARGE);				// An error occured during pre charge
 					modOperationalStatePackStatehandle->faultState = FAULT_CODE_PRECHARGE_TIMEOUT;
+					modCommandsPrintf("In loop 5 \n");
 				}else
 					modOperationalStateSetNewState(OP_STATE_LOAD_ENABLED);					// Goto normal load enabled operation
 			}

@@ -173,6 +173,7 @@ bool  modPowerElectronicsHCSafetyCANAndPowerButtonCheck(void);
 void  modPowerElectronicsResetBalanceModeActiveTimeout(void);
 void  modPowerElectronicsCellMonitorsInit(void);
 void  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void);
+void modPowerElectronicsCellMonitorsReadCellVoltageData(void);
 void  modPowerElectronicsCellMonitorsStartCellConversion(void);
 void  modPowerElectronicsCellMonitorsStartLoadedCellConversion(bool PUP);
 void  modPowerElectronicsCellMonitorsStartTemperatureConversion(void);

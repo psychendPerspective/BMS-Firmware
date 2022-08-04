@@ -149,10 +149,10 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 			modPowerElectronicsPackStateHandle->expModuleVoltages[modulePointer][expPointer] = 0.0f;
 	}
 
-	// Init battery stack monitor
+	// Init battery stack monitor, write Config registers of LTC681x
 	modPowerElectronicsCellMonitorsInit();
 	
-	//start cell voltage ADC conversion by isoSPI write to LTC681x
+	//start cell voltage, GPIO_1 and GPIO_2 ADC conversion by isoSPI write to LTC681x
 	modPowerElectronicsCellMonitorsStartCellConversion();
 
 	// Init the external bus monitor
@@ -1036,6 +1036,14 @@ void modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void){
 	//Read exp voltages
 	driverSWADC128D818ReadExpVoltagesArray(modPowerElectronicsPackStateHandle->expModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupExp],25.0f);
 	modPowerElectronicsExpMonitorsArrayTranslate();
+}
+
+void modPowerElectronicsCellMonitorsReadCellVoltageData(void)
+{
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();	
+	// Read cell voltages
+	driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
+	modPowerElectronicsCellMonitorsArrayTranslate();		
 }
 
 void modPowerElectronicsCellMonitorsArrayTranslate(void) {

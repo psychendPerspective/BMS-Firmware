@@ -15,5 +15,6 @@
         "modterminal.h": "c",
         "modconfig.h": "c",
         "modoperationalstate.h": "c"
-    }
+    },
+    "C_Cpp.dimInactiveRegions": true
 }

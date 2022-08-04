@@ -167,9 +167,10 @@ float interpolate(const float a[], const float b[], size_t size, float value_a)
 
 void modGetStateofChargeFromOCV()
 {
-	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
+	modPowerElectronicsCellMonitorsReadCellVoltageData();  //read cell voltage data
 	modPowerElectronicsCalculateCellStats();
-	modPowerElectronicsCellMonitorsStartCellConversion();
+	modPowerElectronicsCellMonitorsStartCellConversion();        //start cell voltage and GPIO_1,2 ADC conversion
+	modPowerElectronicsCellMonitorsStartTemperatureConversion(); //start conversion of temperature ADC values
 
 	//TO DO: check if type of cell has been changed, in order to ignore stored SoC and read from OCV
 	if(readSoCfromOCV)         
