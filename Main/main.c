@@ -36,8 +36,8 @@
 //#include "safety_check.h"
 //#include "report_status.h"
 
-// This next define enables / disables the watchdog
-//#define AllowDebug
+// Uncomment the below define to disable the watchdog timer, comment it out to enable the watchdog timer
+//#define AllowDebug 
 
 IWDG_HandleTypeDef handleIWDG;
 modConfigGeneralConfigStructTypedef *generalConfig;
@@ -70,7 +70,7 @@ int main(void) {
 	modEffectInit();																													// Controls the effects on LEDs + buzzer
 	modEffectChangeState(STAT_LED_DEBUG,STAT_FLASH);													// Set Debug LED to blinking mode	
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
-  modGetStateofChargeFromOCV();	                                            // calculate SoC from Open Cirucit Voltage 
+  modGetStateofChargeFromOCV();	                                            // Init SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
   
 	//safety_check_init(&packState, generalConfig);
@@ -87,7 +87,7 @@ int main(void) {
 
 		if(modPowerElectronicsTask())																						// Handle power electronics task
     {
-      modStateOfChargeProcess();
+      modStateOfChargeProcess();                                            //Calculate SoC 
     }
 
     //safety_check_task(); 
@@ -140,7 +140,7 @@ void SystemClock_Config(void) {
 
 void mainWatchDogInitAndStart(void) {
 
-	#ifndef AllowDebug
+#ifndef AllowDebug
   handleIWDG.Instance = IWDG;
   handleIWDG.Init.Prescaler = IWDG_PRESCALER_256;
   handleIWDG.Init.Window = 4095;
@@ -156,7 +156,7 @@ void mainWatchDogInitAndStart(void) {
 }
 
 void mainWatchDogReset(void) {
-#ifndef AllowDebug
+#ifndef AllowDebug          //Timeout value: 32768ms
 	HAL_IWDG_Refresh(&handleIWDG);
 #endif
 }

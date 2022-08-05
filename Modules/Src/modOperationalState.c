@@ -120,7 +120,6 @@ void modOperationalStateTask(void) {
 			}
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
-				
 			}
 			else
 			{
@@ -326,7 +325,7 @@ void modOperationalStateTask(void) {
 				modEffectChangeState(STAT_BUZZER,STAT_RESET);
 			modOperationalStateUpdateStates();
 			modDisplayShowInfo(DISP_MODE_POWEROFF,modOperationalStateDisplayData);
-		  if(modDelayTick1ms(&modOperationalStatePSPDisableDelay,modOperationalStateGeneralConfigHandle->powerDownDelay))	{					// Wait for the power down delay time to pass
+		  	if(modDelayTick1ms(&modOperationalStatePSPDisableDelay,modOperationalStateGeneralConfigHandle->powerDownDelay))	{					// Wait for the power down delay time to pass
 			  modOperationalStateTerminateOperation();															// Disable powersupply and store SoC
 			}
 			break;
@@ -499,14 +498,14 @@ void modOperationalStateTask(void) {
 	
 	// In case of extreme cellvoltages or temperatures goto error state
 	if((modOperationalStatePackStatehandle->packOperationalCellState == PACK_STATE_ERROR_HARD_CELLVOLTAGE || modOperationalStatePackStatehandle->packOperationalCellState == PACK_STATE_ERROR_TEMPERATURE) && (modOperationalStatePackStatehandle->packOperationalCellState != packOperationalCellStateLastErrorState) && !modOperationalStateForceOn){
-		packOperationalCellStateLastErrorState = modOperationalStatePackStatehandle->packOperationalCellState; // Meganism to make error situation only trigger once
+		packOperationalCellStateLastErrorState = modOperationalStatePackStatehandle->packOperationalCellState; // Mechanism to make error situation only trigger once
 		modOperationalStateSetNewState(OP_STATE_ERROR);
 		modOperationalStateUpdateStates();		
 	}
 	
 	// In case of extreme currents goto error state
 	if((modOperationalStatePackStatehandle->packOperationalCellState == PACK_STATE_ERROR_OVER_CURRENT) && (modOperationalStatePackStatehandle->packOperationalCellState != packOperationalCellStateLastErrorState)){
-		packOperationalCellStateLastErrorState = modOperationalStatePackStatehandle->packOperationalCellState; // Meganism to make error situation only trigger once
+		packOperationalCellStateLastErrorState = modOperationalStatePackStatehandle->packOperationalCellState; // Mechanism to make error situation only trigger once
 		modOperationalStatePackStatehandle->faultState = FAULT_CODE_OVER_CURRENT;
 		modOperationalStateSetNewState(OP_STATE_ERROR);	
 		modOperationalStateUpdateStates();
@@ -548,8 +547,14 @@ void modOperationalStateTerminateOperation(void) {
 	// Store the state of charge data
 	modStateOfChargePowerDownSave();																						// Store the SoC data
 	
+	//Put the MCU in standby/sleep mode 
+	//HAL_SuspendTick();
+  	//HAL_PWR_EnableSleepOnExit();
+	/* Enter Stop Mode */
+	//HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+	
 	// Disable the power supply
-	modPowerStateSetState(P_STAT_RESET);																				// Turn off the power
+	//modPowerStateSetState(P_STAT_RESET);																				// Turn off the power
 }
 
 bool modOperationalStateDelayedDisable(bool delayedPowerDownDesired) {
