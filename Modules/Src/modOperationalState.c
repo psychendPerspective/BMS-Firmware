@@ -120,6 +120,7 @@ void modOperationalStateTask(void) {
 			}
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
+				
 			}
 			else
 			{
@@ -239,7 +240,7 @@ void modOperationalStateTask(void) {
 				modPowerElectronicsSetChargePFET(false);
 			}
 			
-			modEffectChangeState(STAT_BUZZER,STAT_RESET);
+			//modEffectChangeState(STAT_BUZZER,STAT_RESET);
 			
 			//Cooling/Heating
 			if(modOperationalStatePackStatehandle->coolingAllowed )
@@ -353,7 +354,7 @@ void modOperationalStateTask(void) {
 			modEffectChangeStateError(STAT_LED_DEBUG,STAT_ERROR,modOperationalStatePackStatehandle->faultState);										// Turn flash fast on debug and power LED
 			modEffectChangeStateError(STAT_LED_POWER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
 			if(modOperationalStateGeneralConfigHandle->buzzerSignalSource)
-				modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);			// Turn flash fast on debug and power LED
+				modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
 			modPowerElectronicsDisableAll();
 			modOperationalStateUpdateStates();
 			modOperationalStateDisplayData.FaultCode = modOperationalStatePackStatehandle->faultState;
@@ -373,7 +374,7 @@ void modOperationalStateTask(void) {
 			modEffectChangeState(STAT_LED_DEBUG,STAT_FLASH_FAST);										// Turn flash fast on debug and power LED
 			modEffectChangeState(STAT_LED_POWER,STAT_FLASH_FAST);										// Turn flash fast on debug and power LED
 			if(modOperationalStateGeneralConfigHandle->buzzerSignalSource)
-					modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
+				modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
 			modPowerElectronicsDisableAll();
 			modOperationalStateUpdateStates();
 			modDisplayShowInfo(DISP_MODE_ERROR_PRECHARGE,modOperationalStateDisplayData);
@@ -399,7 +400,7 @@ void modOperationalStateTask(void) {
 			};
 		
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
-				modOperationalStateHandleChargerDisconnect(OP_STATE_POWER_DOWN);
+				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}else{
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}
@@ -441,7 +442,7 @@ void modOperationalStateTask(void) {
 			modEffectChangeState(STAT_LED_POWER,STAT_BLINKSHORTLONG_100_20);								// Indicate balancing
 			break;
 		case OP_STATE_CHARGED:
-			modOperationalStateHandleChargerDisconnect(OP_STATE_POWER_DOWN);
+			modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			modEffectChangeState(STAT_LED_POWER,STAT_BLINKSHORTLONG_1000_4);								// Indicate Charged
 			modOperationalStateUpdateStates();
 			modDisplayShowInfo(DISP_MODE_CHARGED,modOperationalStateDisplayData);

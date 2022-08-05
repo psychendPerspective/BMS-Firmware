@@ -78,7 +78,7 @@ int main(void) {
 		
   while(true) {
 		modEffectTask();
-		modPowerStateTask();
+		//modPowerStateTask();
 		modOperationalStateTask();
 		modUARTTask();
 		modCANTask();

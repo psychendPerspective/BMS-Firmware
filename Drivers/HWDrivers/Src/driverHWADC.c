@@ -4,10 +4,10 @@
 
 ADC_HandleTypeDef hadc1;
 
-const driverHWADCPortStruct driverHWADCPorts[NoOfADCPorts] = 								// Hold all I2C pin configuration data
+const driverHWADCPortStruct driverHWADCPorts[NoOfADCPorts] = 								// Hold all ADC pin configuration data
 {
 	{GPIOA,RCC_AHBENR_GPIOAEN,GPIO_PIN_1,GPIO_MODE_ANALOG,GPIO_NOPULL,0x00},	// LoadVoltageSense analog pin
-	{GPIOA,RCC_AHBENR_GPIOAEN,GPIO_PIN_0,GPIO_MODE_ANALOG,GPIO_PULLUP,0x00}		// ChargeVoltage analog pin
+	{GPIOA,RCC_AHBENR_GPIOAEN,GPIO_PIN_0,GPIO_MODE_ANALOG,GPIO_PULLUP,0x00}		// PackVoltageSense analog pin
 
 };
 
