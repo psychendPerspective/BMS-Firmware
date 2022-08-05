@@ -69,6 +69,7 @@
 	#define HAS_ON_BOARD_NTC				                0	   //has on-board NTC
 	#define ISL28022_MASTER_ADDRES				            0x40
 	#define HAS_DISCHARGE					                1
+	#define HAS_CHARGER_VOLTAGE_MEASUREMENT			        0
 	#define HAS_COMMON_CHARGE_DISCHARGE_OPTION		        0
 	#define HAS_EXTERNAL_VOLTAGE_MEASUREMENT				0      //has isolated Op-amp(AMC3302/ISL)
 	#define BMS_16S_CONFIG                                  1

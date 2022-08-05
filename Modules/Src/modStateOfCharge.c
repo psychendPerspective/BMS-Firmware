@@ -78,7 +78,6 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 	if(driverSWStorageManagerStateOfChargeEmpty)
 	{
 		// TODO: Store type of cell used 
-		//TO DO: check if type of cell has been changed, in order to ignore stored SoC and read from OCV
 		modStateOfChargeStructTypeDef defaultStateOfCharge;
 		defaultStateOfCharge.stateofCharge = 0.0f;
 		defaultStateOfCharge.generalStateOfHealth = 0.0f;
@@ -86,7 +85,9 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 		defaultStateOfCharge.remainingCapacityWh = 0.0f;
 		
 		//driverSWStorageManagerStateOfChargeEmpty = false;
-		readSoCfromOCV = true;
+
+		readSoCfromOCV = true;         //readSoC from OCV when new cell is used or flash memory has changed
+
 		//driverSWStorageManagerStoreStruct(&defaultStateOfCharge,STORAGE_STATEOFCHARGE);
 		// TODO_EEPROM
 	}
@@ -95,7 +96,7 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 	driverSWStorageManagerGetStruct(&tempStateOfCharge,STORAGE_STATEOFCHARGE);
 	
 	if(modStateOfChargeLoadStateOfCharge())
-		//readSoCfromOCV = false;    //TO DO :implement storing type of cell, and if type of cell has changed, set readSoCfromOCV false
+		//readSoCfromOCV = false;    //if flash memory has not changed, read SoC from stored SoC
 		readSoCfromOCV = true;
 		driverSWStorageManagerStateOfChargeEmpty = false;
 

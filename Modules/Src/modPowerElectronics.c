@@ -32,6 +32,7 @@ uint32_t modPowerElectronicsMeasureIntervalLastTick;
 uint32_t modPowerElectronicsChargeRetryLastTick;
 uint32_t modPowerElectronicsDisChargeLCRetryLastTick;
 bool     modPowerElectronicsFirstDischarge;
+//static bool preChargeLastState;
 
 uint32_t modPowerElectronicsCellBalanceUpdateLastTick;
 uint32_t modPowerElectronicsTempMeasureDelayLastTick;
@@ -39,6 +40,9 @@ uint32_t modPowerElectronicsChargeCurrentDetectionLastTick;
 uint32_t modPowerElectronicsBalanceModeActiveLastTick;
 uint32_t modPowerElectronicsZeroCurrentCalibTick;
 uint32_t readVoltagedelayLastTick;
+
+static uint32_t prechargeInitTick;
+static uint32_t prechargeCompleteTick;
 
 uint32_t modPowerElectronicsBuzzerUpdateIntervalLastTick;
 uint32_t modPowerElectronicsThrottleChargeLastTick;
@@ -76,6 +80,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsVoltageSenseError						                  = false;
 	modPowerElectronicsChargeDeratingActive						                  = false;
 	modPowerElectronicsFirstDischarge						                      = true;
+	//preChargeLastState                                                            = false;
 	
 	// Init pack status
 	modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS		  = 0;
@@ -101,6 +106,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsPackStateHandle->disChargeDesired						  = false;
 	modPowerElectronicsPackStateHandle->disChargeLCAllowed						  = true;
 	modPowerElectronicsPackStateHandle->preChargeDesired						  = false;
+	modPowerElectronicsPackStateHandle->prechargeStatus                           = false;
 	modPowerElectronicsPackStateHandle->chargeDesired							  = false;
 	modPowerElectronicsPackStateHandle->chargePFETDesired					      = false;
 	modPowerElectronicsPackStateHandle->chargeAllowed							  = true;
@@ -284,21 +290,38 @@ void modPowerElectronicsAllowForcedOn(bool allowedState){
 
 void modPowerElectronicsSetPreCharge(bool newState) {
 	static bool preChargeLastState = false;
-	
-	if(preChargeLastState != newState) {
+
+	if(preChargeLastState != newState) 
+	{
 		preChargeLastState = newState;
 
-		if(modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1){
+		if(modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1)
+		{
 			modPowerElectronicsPackStateHandle->preChargeDesired = newState;
+			prechargeInitTick = HAL_GetTick();
 		}
 			
 		else
+		{
 			modPowerElectronicsPackStateHandle->preChargeDesired = false;
-
-		
+		}
 		
 		modPowerElectronicsUpdateSwitches();
 		
+	}
+
+	if(modPowerElectronicsFirstDischarge)
+	{
+		prechargeCompleteTick = HAL_GetTick() - prechargeInitTick;
+
+		if(prechargeCompleteTick >= PRECHARGE_TIME)
+		{
+			modPowerElectronicsPackStateHandle->prechargeStatus = true;
+		}
+		else
+		{
+			modPowerElectronicsPackStateHandle->prechargeStatus = false;
+		}
 	}
 };
 
@@ -319,6 +342,7 @@ bool modPowerElectronicsSetDisCharge(bool newState) {
 		
 	}
 	
+	#if HAS_EXTERNAL_VOLTAGE_MEASUREMENT
 	// Prevent turn on with too low output voltage
 	if((modPowerElectronicsPackStateHandle->loCurrentLoadVoltage < modPowerElectronicsGeneralConfigHandle->minimalPrechargePercentage*(modPowerElectronicsPackStateHandle->packVoltage)) && modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1){ 
 		modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
@@ -331,6 +355,24 @@ bool modPowerElectronicsSetDisCharge(bool newState) {
 		modPowerElectronicsFirstDischarge = false;
 		return true;
 	}
+	#else
+	if((modPowerElectronicsPackStateHandle->prechargeStatus == 0) && modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1)
+	{ 
+		modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+
+		if(modPowerElectronicsFirstDischarge == false)
+		{
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			//modPowerElectronicsPackStateHandle->prechargeStatus = false;
+		}
+		return false;	// Output not precharged enough, hence return whether or not precharge is needed.
+	}
+	else
+	{
+		modPowerElectronicsFirstDischarge = false;
+		return true;
+	}
+	#endif
 };
 
 void modPowerElectronicsSetCharge(bool newState) {

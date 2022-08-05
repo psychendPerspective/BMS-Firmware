@@ -49,6 +49,7 @@
 #define VinErrorThreshold             	10
 
 #define zeroCurrentCalibrationTime      3
+#define PRECHARGE_TIME                  1000
 
 typedef enum {
 	TEMP_EXT_LTC_NTC0 = 0,									// EXT on master BMS on LTC
@@ -108,6 +109,7 @@ typedef struct {
 	float    tempBMSAverage;
 	float 	 humidity;
 	uint8_t  preChargeDesired;
+	uint8_t  prechargeStatus;
 	uint8_t  disChargeDesired;
 	uint8_t  disChargeLCAllowed;
 	uint8_t  chargeDesired;

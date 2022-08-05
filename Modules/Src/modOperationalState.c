@@ -86,7 +86,6 @@ void modOperationalStateTask(void) {
 				modCommandsPrintf("Power Button detected\n");
 				modOperationalStateSetNewState(OP_STATE_PRE_CHARGE);									// Prepare to goto operational state
 				modEffectChangeState(STAT_LED_POWER,STAT_SET);												// Turn LED on in normal operation
-				break;
 			}
 			else if(modOperationalStateNewState == OP_STATE_INIT)
 			{								  // USB or CAN origin of turn-on
@@ -106,8 +105,7 @@ void modOperationalStateTask(void) {
 			{// Wait for a bit than update state		
 				if(!modOperationalStatePackStatehandle->disChargeLCAllowed && !modPowerStateChargerDetected()) 
 				{																			// If discharge is not allowed
-					modCommandsPrintf("Error state detected: %d, %d \n",modOperationalStatePackStatehandle->disChargeLCAllowed,modPowerStateChargerDetected());
-					modOperationalStateSetNewState(OP_STATE_ERROR);							// Then the battery is dead
+					modOperationalStateSetNewState(OP_STATE_ERROR);			
 					modOperationalStateBatteryDeadDisplayTime = HAL_GetTick();
 				}
 				modOperationalStateUpdateStates();																		// Sync states
@@ -121,12 +119,13 @@ void modOperationalStateTask(void) {
 				modOperationalStateSetNewState(OP_STATE_BALANCING);	
 			}
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
-				modOperationalStateHandleChargerDisconnect(OP_STATE_POWER_DOWN);
-			}else{
+				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
+			}
+			else
+			{
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}
 			modPowerElectronicsSetCharge(true);
-			modCommandsPrintf("Charger loop\n");
 			if(modOperationalStatePackStatehandle->packCurrent >= 0.5f || modOperationalStatePackStatehandle->packCurrent >= modOperationalStateGeneralConfigHandle->chargerEnabledThreshold){
 				modPowerElectronicsSetChargePFET(true);
 			}else{
@@ -161,7 +160,6 @@ void modOperationalStateTask(void) {
 			// in case of timeout: disable pre charge & go to error state
 			if(modOperationalStateLastState != modOperationalStateCurrentState) { 	  // If discharge is not allowed pre-charge will not be enabled, therefore reset timeout every task call. Also reset on first entry
 				modOperationalStatePreChargeTimeout = HAL_GetTick();										// Reset timeout
-				modCommandsPrintf("In loop 1 \n");
 				modPowerElectronicsSetDisCharge(false);
 				modPowerElectronicsSetCharge(false);
 			}
@@ -169,16 +167,15 @@ void modOperationalStateTask(void) {
 			if(modOperationalStatePackStatehandle->disChargeLCAllowed || modOperationalStateForceOn)
 			{
 				modPowerElectronicsSetPreCharge(true);
-				modCommandsPrintf("In loop 2 \n");
 			}
 			else
 			{
 				modPowerElectronicsSetPreCharge(false);
 				modOperationalStatePreChargeTimeout = HAL_GetTick();
-				modCommandsPrintf("In loop 3 \n");
 				if(modOperationalStateGeneralConfigHandle->buzzerSignalSource)
 					modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);	
 			}
+			#if HAS_EXTERNAL_VOLTAGE_MEASUREMENT
 			if((modOperationalStatePackStatehandle->loCurrentLoadVoltage > modOperationalStatePackStatehandle->packVoltage*modOperationalStateGeneralConfigHandle->minimalPrechargePercentage) && (modOperationalStatePackStatehandle->disChargeLCAllowed || modOperationalStateForceOn)) {
 				if(modOperationalStateForceOn) {
 					modOperationalStateSetNewState(OP_STATE_FORCEON);								// Goto force on
@@ -186,11 +183,22 @@ void modOperationalStateTask(void) {
 					modOperationalStateSetNewState(OP_STATE_LOAD_ENABLED);					// Goto normal load enabled operation
 				}
 			}
-			else if(modDelayTick1ms(&modOperationalStatePreChargeTimeout,modOperationalStateGeneralConfigHandle->timeoutLCPreCharge)){
+			#else
+			if((modOperationalStatePackStatehandle->prechargeStatus) && (modOperationalStatePackStatehandle->disChargeLCAllowed || modOperationalStateForceOn)) 
+			{
+				if(modOperationalStateForceOn) {
+					modOperationalStateSetNewState(OP_STATE_FORCEON);								// Goto force on
+				}else{
+					modOperationalStateSetNewState(OP_STATE_LOAD_ENABLED);					// Goto normal load enabled operation
+				}
+			}
+			#endif
+
+			else if(modDelayTick1ms(&modOperationalStatePreChargeTimeout,modOperationalStateGeneralConfigHandle->timeoutLCPreCharge))
+			{
 				if(modOperationalStateGeneralConfigHandle->LCUsePrecharge>=1){
 					modOperationalStateSetNewState(OP_STATE_ERROR_PRECHARGE);				// An error occured during pre charge
 					modOperationalStatePackStatehandle->faultState = FAULT_CODE_PRECHARGE_TIMEOUT;
-					modCommandsPrintf("In loop 5 \n");
 				}else
 					modOperationalStateSetNewState(OP_STATE_LOAD_ENABLED);					// Goto normal load enabled operation
 			}
@@ -198,25 +206,32 @@ void modOperationalStateTask(void) {
 			modOperationalStateUpdateStates();
 			break;
 		case OP_STATE_LOAD_ENABLED:
-			if(modPowerElectronicsSetDisCharge(true)) {
-				
+			if(modPowerElectronicsSetDisCharge(true)) 
+			{
 				if(modOperationalStateGeneralConfigHandle->LCUsePrecharge==forced){
 					#if ENNOID_HV
 					modPowerElectronicsSetPreCharge(true);
 					#endif
-				}else{
+				}
+				else
+				{
 					modPowerElectronicsSetPreCharge(false);
 				}
-			  if(modPowerStateChargerDetected()){
+			  	if(modPowerStateChargerDetected())
+			  	{
 					modPowerElectronicsSetCharge(modOperationalStateGeneralConfigHandle->allowChargingDuringDischarge);
 					if(modOperationalStatePackStatehandle->packCurrent >= 0.5f || modOperationalStatePackStatehandle->packCurrent >= modOperationalStateGeneralConfigHandle->chargerEnabledThreshold){
 						modPowerElectronicsSetChargePFET(true);
 					}
-				}else{
+				}
+				else
+				{
 					modPowerElectronicsSetCharge(false);
 					modPowerElectronicsSetChargePFET(false);
 				}
-			}else{
+			}
+			else
+			{
 				modOperationalStateSetNewState(OP_STATE_PRE_CHARGE);
 				modOperationalStatePackStatehandle->faultState = FAULT_CODE_DISCHARGE_RETRY;
 				modPowerElectronicsSetDisCharge(false);
@@ -232,8 +247,9 @@ void modOperationalStateTask(void) {
 			else{
 				modPowerElectronicsSetCooling(false);
 			}
-		//Charger detect
-			if(modPowerStateChargerDetected() && !modOperationalStateGeneralConfigHandle->allowChargingDuringDischarge) {
+			//Charger detectected during loaded operation
+			if(modPowerStateChargerDetected() && !modOperationalStateGeneralConfigHandle->allowChargingDuringDischarge) 
+			{
 				modOperationalStateSetNewState(OP_STATE_INIT);
 				modPowerElectronicsSetDisCharge(false);
 				modPowerElectronicsSetCharge(false);

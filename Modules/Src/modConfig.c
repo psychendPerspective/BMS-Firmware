@@ -374,9 +374,9 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->noOfTempSensorPerModule            		                         = 9;					// Number of temperature sensors monitored per LTC68XX
 	configLocation->noOfExpansionBoard       			                             = 0;					// Number of expansion board
 	configLocation->noOfTempSensorPerExpansionBoard          	                     = 0;					// Number of temperature sensors monitored per expansion board
-	configLocation->LCUseDischarge                                  	             = disabled;                 		// Enable or disable the solid state output
+	configLocation->LCUseDischarge                                  	             = enabled;                 	// Enable or disable discharge output
 	configLocation->LCUsePrecharge                                 	                 = enabled;              		// Use precharge before enabling main output
-	configLocation->allowChargingDuringDischarge                    	             = true;                    		// Allow the battery to be charged in normal mode
+	configLocation->allowChargingDuringDischarge                    	             = false;                    		// Allow the battery to be charged in normal mode
 	configLocation->allowForceOn                                   	                 = false;                  		// Allow the BMS to be forced ON by long actuation of the power button
 	configLocation->pulseToggleButton                              	                 = true;                   		// Select either pulse or toggle power button
 	configLocation->useCANSafetyInput                              	                 = false;             			// Use the safety input status from CAN
