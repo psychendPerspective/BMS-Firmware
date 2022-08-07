@@ -311,7 +311,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->cellLCSoftUnderVoltage				                             = 2.70f;				// Lowest cell voltage X.XXV.
 	configLocation->cellSoftOverVoltage				                                 = 4.18f;				// Normal highest cell voltage X.XXV.
 	configLocation->cellBalanceDifferenceThreshold                 	                 = 0.01f;				// Start balancing @ XmV difference, stop if below.
-	configLocation->cellBalanceStart				                                 = 4.1f;					// Start balancing above X.XXV.
+	configLocation->cellBalanceStart				                                 = 3.2f;				//4.10f	// Start balancing above X.XXV.
 	configLocation->cellBalanceAllTime				                                 = false;				// Enable balancing under all opstate
 	configLocation->cellThrottleUpperStart				                             = 0.03f;				// Upper range of cell voltage for charge throttling.
 	configLocation->cellThrottleLowerStart				                             = 0.20f;				// Lower range of cell voltage for discharge throttling.
@@ -330,7 +330,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->chargerVoltageOffset                                             = 0.0f;                    		// Charger voltage offset
 	configLocation->throttleChargeIncreaseRate                     	                 = 1;                       		// Percentage charge throttle increase rate per 100ms (cell voltage loop time)  
 	configLocation->throttleDisChargeIncreaseRate                                    = 2;                       		// Percentage discharge throttle increase rate per 100ms (cell voltage loop time)  	
-	configLocation->cellBalanceUpdateInterval			                             = 4*1000;				// Keep calculated resistors enabled for this amount of time in miliseconds.
+	configLocation->cellBalanceUpdateInterval			                             = 500;				// Keep calculated resistors enabled for this amount of time in miliseconds.
 	configLocation->maxSimultaneousDischargingCells			                         = 5;					// Allow a maximum of X cells simultinous discharging trough bleeding resistors.
 	configLocation->timeoutDischargeRetry				                             = 10*1000;				// Wait for X seconds before retrying to enable load.
 	configLocation->hysteresisDischarge 				                             = 0.02f;				// Lowest cell should rise XXmV before output is re enabled.
@@ -339,7 +339,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->timeoutChargeCompleted				                             = 30*60*1000;				// Wait for XX minutes before setting charge state to charged.
 	configLocation->timeoutChargingCompletedMinimalMismatch 	                     = 6*1000;				// If cell mismatch is under threshold and (charging is not allowed) wait this delay time to set "charged" state.
 	configLocation->maxMismatchThreshold				                             = 0.010f;				// If mismatch is under this threshold for timeoutChargingCompletedMinimalMismatch determin fully charged.
-	configLocation->chargerEnabledThreshold				                             = 0.5f;					// If charge current > X.XA stay in charging mode and dont power off.
+	configLocation->chargerEnabledThreshold				                             = 0.1f;					// If charge current > X.XA stay in charging mode and dont power off.
 	configLocation->timeoutChargerDisconnected			                             = 2000;					// Wait for X seconds to respond to charger disconnect.
 	configLocation->minimalPrechargePercentage			                             = 0.70f;				// output should be at a minimal of 80% of input voltage.
 	configLocation->timeoutLCPreCharge				                                 = 1.5*1000;				// Precharge error timeout, allow 1.5 seconds pre-charge time before declaring load error.
@@ -359,7 +359,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->displayStyle					                                 = advanced;				// Display style used for showing the SSD1306 data
 	configLocation->maxUnderAndOverVoltageErrorCount 		                         = 5;					// Max count of hard cell voltage errors.
 	configLocation->maxUnderAndOverTemperatureErrorCount		                     = 5;					// Max count of hard cell voltage errors.
-	configLocation->notUsedCurrentThreshold				                             = 1.0f;					// If abs(packcurrent) < X.XA consider pack as not used.
+	configLocation->notUsedCurrentThreshold				                             = 0.5f;					// If abs(packcurrent) < X.XA consider pack as not used.
 	configLocation->notUsedTimeout					                                 = 20*60*1000;				// If pack is not used for longer than XX minutes disable bms.
 	configLocation->stateOfChargeStoreInterval			                             = 60*1000;				// Interval in ms to store state of charge information.
 	configLocation->stateOfChargeMethod                            	                 = socCoulombAndCellVoltage;				// Use OCV vs SoC for inital SoC and then use coulomb counting for SoC calculation
@@ -402,6 +402,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->BMSApplication					                                 = electricVehicle;
 	configLocation->cellTypeUsed              										 = AMS_18650_2500mAh;           //type of cell used to determine OCV_vs_SOC lookup table
 	configLocation->maxSoftUnderVoltageErrorCount                                    = 10;
+	configLocation->maxAllowedChargingCurrent                                        = 1.60f;
 
 #elif ENNOID_SS
 	configLocation->noOfCellsSeries					= 18;					// Total number of cells in series in the battery pack

@@ -125,12 +125,16 @@ void modOperationalStateTask(void) {
 			{
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}
-			modPowerElectronicsSetCharge(true);
+			#if HAS_PFET_OUTPUT
 			if(modOperationalStatePackStatehandle->packCurrent >= 0.5f || modOperationalStatePackStatehandle->packCurrent >= modOperationalStateGeneralConfigHandle->chargerEnabledThreshold){
 				modPowerElectronicsSetChargePFET(true);
 			}else{
 				modPowerElectronicsSetChargePFET(false);
 			};
+			#else
+			modPowerElectronicsSetCharge(true);
+			#endif
+
 			#if (HAS_COMMON_CHARGE_DISCHARGE_OPTION) 
 				//Allow main contactors to close if load voltage is above pack voltage & below max allowed voltage, that means that the charger is connected to the load
 				if(modOperationalStatePackStatehandle->packVoltage-modOperationalStatePackStatehandle->loCurrentLoadVoltage < (modOperationalStatePackStatehandle->packVoltage*0.1f) && modOperationalStatePackStatehandle->loCurrentLoadVoltage < (modOperationalStateGeneralConfigHandle->noOfCellsSeries*modOperationalStateGeneralConfigHandle->cellHardOverVoltage+10)){ 
@@ -256,7 +260,7 @@ void modOperationalStateTask(void) {
 			};
 			
 			
-			// Battery is empty or battery temp is out of range?
+			// Battery is empty or fault is detected
 			if(!modOperationalStatePackStatehandle->disChargeLCAllowed) {							
 				//modOperationalStateSetNewState(OP_STATE_ERROR);
 				modPowerElectronicsSetDisCharge(false);
@@ -378,7 +382,8 @@ void modOperationalStateTask(void) {
 			modOperationalStateUpdateStates();
 			modDisplayShowInfo(DISP_MODE_ERROR_PRECHARGE,modOperationalStateDisplayData);
 			break;
-		case OP_STATE_BALANCING:
+		case OP_STATE_BALANCING: //TO DO:disable balancing when in error/power down state, handle charger disconnect case. 
+									//Current Scenario: charger disconnected during balancing, goes to init state, doesnt turn off charge relay, hence reads Battery voltage as charger detected, loops into balancing
 			// update timeout time for balancing and use charging manager for enable state charge input
 			if(modOperationalStatePackStatehandle->packCurrent < modOperationalStateGeneralConfigHandle->chargerEnabledThreshold && modOperationalStatePackStatehandle->chargeAllowed){
 				if(modDelayTick1ms(&modOperationalStateChargerTimeout,modOperationalStateGeneralConfigHandle->timeoutChargeCompleted)) {
@@ -404,11 +409,15 @@ void modOperationalStateTask(void) {
 				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			}
 			if(modOperationalStatePackStatehandle->chargeAllowed){
-				modPowerElectronicsSetCharge(true);
+				//modPowerElectronicsSetCharge(true);
+				#if HAS_PFET_OUTPUT
 				if(modOperationalStatePackStatehandle->packCurrent >= 0.5f || modOperationalStatePackStatehandle->packCurrent >= modOperationalStateGeneralConfigHandle->chargerEnabledThreshold){
 					modPowerElectronicsSetChargePFET(true);
 				}
-				
+				#else
+				modPowerElectronicsSetCharge(true);
+				#endif
+
 				#if (HAS_COMMON_CHARGE_DISCHARGE_OPTION)
 				if(modOperationalStatePackStatehandle->packVoltage-modOperationalStatePackStatehandle->loCurrentLoadVoltage < (modOperationalStatePackStatehandle->packVoltage*0.1f) && modOperationalStatePackStatehandle->loCurrentLoadVoltage < (modOperationalStateGeneralConfigHandle->noOfCellsSeries*modOperationalStateGeneralConfigHandle->cellHardOverVoltage+10.0f)){ 
 					modPowerElectronicsSetDisCharge(true);

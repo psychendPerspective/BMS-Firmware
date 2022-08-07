@@ -68,6 +68,7 @@
 	#define HW_LIM_MIN_NOT_USED_DELAY                       5000
 	#define HAS_ON_BOARD_NTC				                0	   //has on-board NTC
 	#define ISL28022_MASTER_ADDRES				            0x40
+	#define HAS_PFET_OUTPUT                                 0
 	#define HAS_DISCHARGE					                1
 	#define HAS_CHARGER_VOLTAGE_MEASUREMENT			        0
 	#define HAS_COMMON_CHARGE_DISCHARGE_OPTION		        0

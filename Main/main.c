@@ -67,7 +67,7 @@ int main(void) {
 	modCommandsInit(&packState,generalConfig);
 	modUARTInit();																	  												// Will act on UART message requests
 	modCANInit(&packState,generalConfig);																			// Will act on CAN message requests
-	modEffectInit();																													// Controls the effects on LEDs + buzzer
+	modEffectInit();																													// Controls the effects on status LED
 	modEffectChangeState(STAT_LED_DEBUG,STAT_FLASH);													// Set Debug LED to blinking mode	
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
   modGetStateofChargeFromOCV();	                                            // Init SoC from Open Cirucit Voltage 

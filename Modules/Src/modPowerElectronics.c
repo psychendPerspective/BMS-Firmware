@@ -272,10 +272,10 @@ bool modPowerElectronicsTask(void) {
 		//Measure temperature voltages
 		modPowerElectronicsCellMonitorsStartTemperatureConversion();
 		
-		// Calculate temperature statistics
+		// Calculate temperature stats
 		modPowerElectronicsCalcTempStats();
 		
-		// Check and respond to the measured voltage values
+		// Check and respond to the measured voltage and temperature values
 		modPowerElectronicsSubTaskVoltageWatch();
 		
 		// Check and respond to the measured current values
@@ -464,33 +464,44 @@ void modPowerElectronicsSubTaskBalancing(void) {
 	static uint32_t delayTimeHolder = 100;
 	static bool     delaytoggle = false;
 	
-	
-	if(modDelayTick1ms(&modPowerElectronicsCellBalanceUpdateLastTick,delayTimeHolder)) {
+
+	if(modDelayTick1ms(&modPowerElectronicsCellBalanceUpdateLastTick,delayTimeHolder)) 
+	{
 		delaytoggle ^= true;
-		delayTimeHolder = delaytoggle ? modPowerElectronicsGeneralConfigHandle->cellBalanceUpdateInterval : 200;
+		delayTimeHolder = delaytoggle ? modPowerElectronicsGeneralConfigHandle->cellBalanceUpdateInterval : 1000;
 		
 		if(delaytoggle) {
-			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerStateChargerDetected() || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime) {	
-				for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) {
-					if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= (modPowerElectronicsPackStateHandle->cellVoltageLow + modPowerElectronicsGeneralConfigHandle->cellBalanceDifferenceThreshold)) {
-						if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= modPowerElectronicsGeneralConfigHandle->cellBalanceStart) {
+			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerStateChargerDetected() || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime) 
+			{	
+				for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) 
+				{
+					if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= (modPowerElectronicsPackStateHandle->cellVoltageLow + modPowerElectronicsGeneralConfigHandle->cellBalanceDifferenceThreshold)) 
+					{
+						if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= modPowerElectronicsGeneralConfigHandle->cellBalanceStart) 
+						{
 							modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = true;
 							modPowerElectronicsPackStateHandle->balanceActive = true;
-						}else{
+						}
+						else
+						{
 						  modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
 						}
-					}else{
+					}
+					else
+					{
 						modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
 					}
 				}
 			}
-		}else{
-		for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) {
-		modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
-			
 		}
-		modPowerElectronicsPackStateHandle->balanceActive = false;
-	}
+		else
+		{
+			for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) 
+			{
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
+			}
+			modPowerElectronicsPackStateHandle->balanceActive = false;
+		}
 		
 		modPowerElectronicsCallMonitorsCalcBalanceResistorArray();
 		modPowerElectronicsCellMonitorsEnableBalanceResistorsArray();
@@ -635,13 +646,22 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 	}
 };
 
-void 	modPowerElectronicsSubTaskCurrentWatch(void){
+void modPowerElectronicsSubTaskCurrentWatch(void){
 		// Handle over current limits 
 	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedCurrent){
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 			modPowerElectronicsPackStateHandle->chargeAllowed = false;
 	}
+
+	//Handle overcurrent during charging
+	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedChargingCurrent){
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}
+
+
 };
 
 // Update switch states, should be called after every desired/allowed switch state change
