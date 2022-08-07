@@ -126,9 +126,10 @@ typedef struct {
 	uint32_t	NTCTopResistor[modConfigNoOfNTCTypes];                               // NTC Pullup resistor value
 	uint32_t	NTC25DegResistance[modConfigNoOfNTCTypes];                           // NTC resistance at 25 degree
 	uint16_t	NTCBetaFactor[modConfigNoOfNTCTypes];                                // NTC Beta factor
-	uint8_t		humidityICType;	
+	uint8_t		humidityICType;														 // Humidity sensor IC type
 	uint8_t		BMSApplication;
-	uint8_t     cellTypeUsed;																												// Humidity sensor IC type
+	uint8_t     cellTypeUsed;
+	uint8_t     maxSoftUnderVoltageErrorCount;																												
 } modConfigGeneralConfigStructTypedef;
 
 modConfigGeneralConfigStructTypedef* modConfigInit(void);

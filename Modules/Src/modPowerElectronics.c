@@ -47,6 +47,7 @@ static uint32_t prechargeCompleteTick;
 uint32_t modPowerElectronicsBuzzerUpdateIntervalLastTick;
 uint32_t modPowerElectronicsThrottleChargeLastTick;
 uint8_t  modPowerElectronicsUnderAndOverVoltageErrorCount;
+uint8_t  modPowerElectronicsSoftVoltageErrorCount;
 uint8_t  modPowerElectronicsUnderAndOverTemperatureErrorCount;
 bool     modPowerElectronicsAllowForcedOnState;
 uint16_t modPowerElectronicsAuxVoltageArray[3];
@@ -73,6 +74,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsGeneralConfigHandle						                  = generalConfigPointer;
 	modPowerElectronicsPackStateHandle						                      = packState;
 	modPowerElectronicsUnderAndOverVoltageErrorCount				              = 0;
+	modPowerElectronicsSoftVoltageErrorCount                                      = 0;
 	modPowerElectronicsUnderAndOverTemperatureErrorCount				          = 0;
 	modPowerElectronicsAllowForcedOnState						                  = false;
 	modPowerElectronicsVinErrorCount						                      = 0;
@@ -207,9 +209,16 @@ bool modPowerElectronicsTask(void) {
 		modPowerElectronicsSamplePackAndLCData();
 		
 		// Check whether packvoltage is whithin theoretical limits
-		if(modPowerElectronicsPackStateHandle->packVoltage >= (modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
+		#if BMS_16S_CONFIG
+		if(modPowerElectronicsPackStateHandle->packVoltage >= (16 * modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
+			modPowerElectronicsVoltageSenseError = true; 
+		}
+		#else
+		if(modPowerElectronicsPackStateHandle->packVoltage >= (modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) 
+		{
 			modPowerElectronicsVoltageSenseError = true;
 		}
+		#endif
 		
 		// Check the pack currents based on config and calculate pack power.
 		modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsCalcPackCurrent();
@@ -519,14 +528,25 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 	//modPowerElectronicsCellMonitorsReadVoltageFlags(&hardUnderVoltageFlags,&hardOverVoltageFlags);
 	modPowerElectronicsCalculateCellStats();
 	
-	if(modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_HARD_CELLVOLTAGE && modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_TEMPERATURE) {
+	if(modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_HARD_CELLVOLTAGE && modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_TEMPERATURE)
+	{
 		
 		// Handle soft cell voltage limits & temperatures
 		//Discharge disable
-		if(modPowerElectronicsPackStateHandle->cellVoltageLow <= modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage) {
+		if(modPowerElectronicsPackStateHandle->cellVoltageLow <= modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage) 
+		{
+			if(modPowerElectronicsSoftVoltageErrorCount > modPowerElectronicsGeneralConfigHandle->maxSoftUnderVoltageErrorCount)
+			{
+				modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_REPEATED_SOFT_CELLVOLTAGE;
+				modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_MAX_SOFT_UVP_ERRORS;
+				modPowerElectronicsSoftVoltageErrorCount = 0;
+
+			}
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 			modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
 			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CELL_SOFT_UNDER_VOLTAGE;
+			modPowerElectronicsSoftVoltageErrorCount++;
+
 		}
 
 		if(modPowerElectronicsPackStateHandle->tempBatteryHigh >= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax){
@@ -583,9 +603,11 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 		
 	}
 	
+
 	// Handle hard cell voltage limits
 	if(modPowerElectronicsVoltageSenseError || modPowerElectronicsPackStateHandle->cellVoltageHigh > modPowerElectronicsGeneralConfigHandle-> cellHardOverVoltage || modPowerElectronicsPackStateHandle->cellVoltageLow < modPowerElectronicsGeneralConfigHandle-> cellHardUnderVoltage || (modPowerElectronicsPackStateHandle->packVoltage > modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
-		if(modPowerElectronicsUnderAndOverVoltageErrorCount++ > modPowerElectronicsGeneralConfigHandle->maxUnderAndOverVoltageErrorCount){
+		if(modPowerElectronicsUnderAndOverVoltageErrorCount++ > modPowerElectronicsGeneralConfigHandle->maxUnderAndOverVoltageErrorCount)
+		{
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_HARD_CELLVOLTAGE;
 			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_MAX_UVP_OVP_ERRORS;
 		}

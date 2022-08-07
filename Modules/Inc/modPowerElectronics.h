@@ -75,6 +75,7 @@ typedef enum {
 	PACK_STATE_ERROR_OVER_CURRENT,
 	PACK_STATE_NORMAL,
 	PACK_STATE_ERROR_TEMPERATURE,
+	PACK_STATE_ERROR_REPEATED_SOFT_CELLVOLTAGE
 } modPowerElectronicsPackOperationalCellStatesTypedef;
 
 typedef struct {

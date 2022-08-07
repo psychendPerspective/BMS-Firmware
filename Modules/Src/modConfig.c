@@ -401,6 +401,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->humidityICType 					                                 = 0;
 	configLocation->BMSApplication					                                 = electricVehicle;
 	configLocation->cellTypeUsed              										 = AMS_18650_2500mAh;           //type of cell used to determine OCV_vs_SOC lookup table
+	configLocation->maxSoftUnderVoltageErrorCount                                    = 10;
 
 #elif ENNOID_SS
 	configLocation->noOfCellsSeries					= 18;					// Total number of cells in series in the battery pack

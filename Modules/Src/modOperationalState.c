@@ -510,6 +510,14 @@ void modOperationalStateTask(void) {
 		modOperationalStateSetNewState(OP_STATE_ERROR);	
 		modOperationalStateUpdateStates();
 	}
+
+	//Handle repeated soft cell undervoltage fault
+	if(modOperationalStatePackStatehandle->packOperationalCellState == PACK_STATE_ERROR_REPEATED_SOFT_CELLVOLTAGE && (modOperationalStatePackStatehandle->packOperationalCellState != packOperationalCellStateLastErrorState))
+	{
+		packOperationalCellStateLastErrorState = modOperationalStatePackStatehandle->packOperationalCellState;
+		modOperationalStateSetNewState(OP_STATE_ERROR);
+		modOperationalStateUpdateStates();
+	}
 	
 	
 	// Move the button pressed state to the status struct
