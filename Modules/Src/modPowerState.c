@@ -53,12 +53,12 @@ void modPowerStateInit(PowerStateStateTypedef desiredPowerState) {
 	
 	driverHWPowerStateInit();
 	
-	while(!modDelayTick1ms(&modPowerStateStartupDelay,20));										// Needed for power button signal to reach uC
-	modPowerStateLastButtonFirstPress = modPowerStateLastButtonPressedVar = driverHWPowerStateReadInput(P_STAT_BUTTON_INPUT);
+	//while(!modDelayTick1ms(&modPowerStateStartupDelay,20));										
+	modPowerStateLastButtonFirstPress = modPowerStateLastButtonPressedVar = driverHWPowerStateReadInput(P_STAT_BUTTON_INPUT);  //read state of toggle button
 	
-	if(!modPowerStateLastButtonFirstPress) {
-		while(!modDelayTick1ms(&modPowerStateStartupDelay,100));
-	}
+	// if(!modPowerStateLastButtonFirstPress) {
+	// 	while(!modDelayTick1ms(&modPowerStateStartupDelay,100));
+	// }
 
 	modPowerStateSetState(desiredPowerState);
 };
@@ -152,6 +152,7 @@ void modPowerStateSetState(PowerStateStateTypedef newState) {
 };
 
 bool modPowerStateButtonPressedOnTurnon(void) {
+	modPowerStateLastButtonFirstPress = driverHWPowerStateReadInput(P_STAT_BUTTON_INPUT);
 	return modPowerStateLastButtonFirstPress;
 };
 

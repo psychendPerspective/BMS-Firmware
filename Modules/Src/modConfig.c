@@ -311,7 +311,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->cellLCSoftUnderVoltage				                             = 2.70f;				// Lowest cell voltage X.XXV.
 	configLocation->cellSoftOverVoltage				                                 = 4.18f;				// Normal highest cell voltage X.XXV.
 	configLocation->cellBalanceDifferenceThreshold                 	                 = 0.01f;				// Start balancing @ XmV difference, stop if below.
-	configLocation->cellBalanceStart				                                 = 3.2f;				//4.10f	// Start balancing above X.XXV.
+	configLocation->cellBalanceStart				                                 = 3.6f;				//4.10f	// Start balancing above X.XXV.
 	configLocation->cellBalanceAllTime				                                 = false;				// Enable balancing under all opstate
 	configLocation->cellThrottleUpperStart				                             = 0.03f;				// Upper range of cell voltage for charge throttling.
 	configLocation->cellThrottleLowerStart				                             = 0.20f;				// Lower range of cell voltage for discharge throttling.
@@ -340,7 +340,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->timeoutChargingCompletedMinimalMismatch 	                     = 6*1000;				// If cell mismatch is under threshold and (charging is not allowed) wait this delay time to set "charged" state.
 	configLocation->maxMismatchThreshold				                             = 0.010f;				// If mismatch is under this threshold for timeoutChargingCompletedMinimalMismatch determin fully charged.
 	configLocation->chargerEnabledThreshold				                             = 0.1f;					// If charge current > X.XA stay in charging mode and dont power off.
-	configLocation->timeoutChargerDisconnected			                             = 2000;					// Wait for X seconds to respond to charger disconnect.
+	configLocation->timeoutChargerDisconnected			                             = 1000;					// Wait for X seconds to respond to charger disconnect.
 	configLocation->minimalPrechargePercentage			                             = 0.70f;				// output should be at a minimal of 80% of input voltage.
 	configLocation->timeoutLCPreCharge				                                 = 1.5*1000;				// Precharge error timeout, allow 1.5 seconds pre-charge time before declaring load error.
 	configLocation->maxAllowedCurrent				                                 = 200.0f;				// Allow max XXXA trough BMS.
@@ -355,7 +355,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->displayTimeoutBatteryDead			                             = 5000;					// Show battery dead symbol X seconds before going to powerdown in cell voltage error state.
 	configLocation->displayTimeoutBatteryError			                             = 5000;					// Show error symbol for X seconds before going to powerdown in general error state.
 	configLocation->displayTimeoutBatteryErrorPreCharge		                         = 10000;				// Show pre charge error for XX seconds.
-	configLocation->displayTimeoutSplashScreen			                             = 3000;					// Display / INIT splash screen time.
+	configLocation->displayTimeoutSplashScreen			                             = 1000;					// Display / INIT splash screen time.
 	configLocation->displayStyle					                                 = advanced;				// Display style used for showing the SSD1306 data
 	configLocation->maxUnderAndOverVoltageErrorCount 		                         = 5;					// Max count of hard cell voltage errors.
 	configLocation->maxUnderAndOverTemperatureErrorCount		                     = 5;					// Max count of hard cell voltage errors.

@@ -590,7 +590,7 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CHARGE_UNDER_TEMP_CELLS;
 		}
 		
-		//Enable discharge
+		//Enable discharge 
 		if(modPowerElectronicsPackStateHandle->cellVoltageLow >= (modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->hysteresisDischarge) && modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin) {
 			if(modDelayTick1ms(&modPowerElectronicsDisChargeLCRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutDischargeRetry)){
 				modPowerElectronicsPackStateHandle->disChargeLCAllowed = true;
@@ -598,7 +598,9 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 			}	
 		}
 		//Enable charge
-		if(modPowerElectronicsPackStateHandle->cellVoltageHigh <= (modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->hysteresisCharge) && modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMin) {
+		if(modPowerElectronicsPackStateHandle->cellVoltageHigh <= (modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->hysteresisCharge) 
+			&& modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMin ) 
+		{
 			if(modDelayTick1ms(&modPowerElectronicsChargeRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutChargeRetry)){
 				modPowerElectronicsPackStateHandle->chargeAllowed = true;
 				modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_NONE;
@@ -627,7 +629,7 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 	}else
 		modPowerElectronicsUnderAndOverVoltageErrorCount = 0;
 	
-		// Handle temperature limits
+	// Handle temperature limits
 	if(modPowerElectronicsPackStateHandle->tempBatteryHigh > (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax + 10.0f) || modPowerElectronicsPackStateHandle->tempBatteryLow < (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin - 10.0f)) {
 		if(modPowerElectronicsUnderAndOverTemperatureErrorCount++ > modPowerElectronicsGeneralConfigHandle->maxUnderAndOverTemperatureErrorCount){
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_TEMPERATURE;
@@ -647,7 +649,7 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 };
 
 void modPowerElectronicsSubTaskCurrentWatch(void){
-		// Handle over current limits 
+	// Handle over current limits  //TO DO :check discharge current limit 
 	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedCurrent){
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
@@ -655,7 +657,8 @@ void modPowerElectronicsSubTaskCurrentWatch(void){
 	}
 
 	//Handle overcurrent during charging
-	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedChargingCurrent){
+	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedChargingCurrent)
+	{
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 			modPowerElectronicsPackStateHandle->chargeAllowed = false;
