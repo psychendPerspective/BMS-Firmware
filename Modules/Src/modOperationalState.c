@@ -456,11 +456,12 @@ void modOperationalStateTask(void) {
 				modOperationalStateChargedTimeout = HAL_GetTick();
 			};
 		
-			//Handle charger disconnect 
+			//Handle charger disconnect only when charger is disconnected, not when pack current < than charger enabled threshold 
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
-				modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
+				//modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
+				modOperationalStateHandleChargerDisconnectBalancing(OP_STATE_INIT);
 			}else{
-				modOperationalStateHandleChargerDisconnect(OP_STATE_POWER_DOWN);
+				modOperationalStateHandleChargerDisconnectBalancing(OP_STATE_POWER_DOWN);
 			}
 			
 			//Cooling/Heating
@@ -580,6 +581,36 @@ void modOperationalStateSetNewState(OperationalStateTypedef newState) {
 
 void modOperationalStateHandleChargerDisconnect(OperationalStateTypedef newState) {
 	if(modPowerStateChargerDetected() && !((modOperationalStatePackStatehandle->packCurrent < modOperationalStateGeneralConfigHandle->chargerEnabledThreshold ) && modOperationalStatePackStatehandle->chargeDesired && modOperationalStatePackStatehandle->chargeAllowed)) {
+		modOperationalStateChargerDisconnectDetectDelay = HAL_GetTick();
+		modOperationalStateFirstChargeEvent = false;
+		//chargerDisconnectEvent = false;
+	}
+	else
+	{
+		if(modOperationalStateFirstChargeEvent == 0)
+		{
+			if(modDelayTick1ms(&modOperationalStateChargerDisconnectDetectDelay,modOperationalStateGeneralConfigHandle->timeoutChargerDisconnected))
+			{
+				#if HAS_PFET_OUTPUT
+				modPowerElectronicsSetChargePFET(false);
+				modOperationalStateSetAllStates(newState);
+				modOperationalStatePackStatehandle->powerDownDesired = true;
+				#else
+				chargerDisconnectDelayTick = HAL_GetTick();
+				modPowerElectronicsSetCharge(false);
+				while(!modDelayTick1ms(&chargerDisconnectDelayTick,1000)){};	
+				modOperationalStateSetAllStates(newState);
+				chargerDisconnectEvent = true;
+				//modOperationalStatePackStatehandle->powerDownDesired = true;
+				#endif
+
+			}
+		}
+	}
+};
+
+void modOperationalStateHandleChargerDisconnectBalancing(OperationalStateTypedef newState) { //not ideal,zero current value can vary
+	if(modPowerStateChargerDetected() && !((modOperationalStatePackStatehandle->packCurrent < 0.05f ) && modOperationalStatePackStatehandle->chargeDesired && modOperationalStatePackStatehandle->chargeAllowed)) {
 		modOperationalStateChargerDisconnectDetectDelay = HAL_GetTick();
 		modOperationalStateFirstChargeEvent = false;
 		//chargerDisconnectEvent = false;

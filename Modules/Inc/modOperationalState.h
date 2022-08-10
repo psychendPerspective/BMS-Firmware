@@ -43,6 +43,7 @@ void modOperationalStateSetAllFaultStates(bms_fault_state newFaultState);
 void modOperationalStateSetNewFaultState(bms_fault_state newFaultState);
 
 void modOperationalStateHandleChargerDisconnect(OperationalStateTypedef newState);
+void modOperationalStateHandleChargerDisconnectBalancing(OperationalStateTypedef newState);
 void modOperationalStateTerminateOperation(void);
 bool modOperationalStateDelayedDisable(bool delayedPowerDownDesired);
 bool modOperationalStatePowerDownDelayCheck(void);

@@ -470,8 +470,8 @@ void modPowerElectronicsSubTaskBalancing(void) {
 		delaytoggle ^= true;
 		delayTimeHolder = delaytoggle ? modPowerElectronicsGeneralConfigHandle->cellBalanceUpdateInterval : 1000;
 		
-		if(delaytoggle) {
-			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerStateChargerDetected() || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime) 
+		if(delaytoggle) { //modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerStateChargerDetected() || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime
+			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired && modPowerElectronicsPackStateHandle->chargeAllowed) || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime) 
 			{	
 				for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) 
 				{

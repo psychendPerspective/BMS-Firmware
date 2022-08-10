@@ -8,7 +8,7 @@
 /*
 	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
-  Copyright 2022        Vishal Bhat vishal.bhat09@gmail.com
+  	Copyright 2022        Vishal Bhat vishal.bhat09@gmail.com
 
 	This file is part of the Xanadu BMS firmware.
 
