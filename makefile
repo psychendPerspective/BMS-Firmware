@@ -5,7 +5,7 @@ SRCS += ./Modules/Src/modCAN.c
 SRCS += ./Modules/Src/modCommands.c
 SRCS += ./Modules/Src/modConfig.c
 SRCS += ./Modules/Src/modDelay.c
-SRCS += ./Modules/Src/modDisplay.c
+#SRCS += ./Modules/Src/modDisplay.c
 SRCS += ./Modules/Src/modEffect.c
 SRCS += ./Modules/Src/modFlash.c
 SRCS += ./Modules/Src/modOperationalState.c
@@ -14,6 +14,7 @@ SRCS += ./Modules/Src/modPowerState.c
 SRCS += ./Modules/Src/modStateOfCharge.c
 SRCS += ./Modules/Src/modTerminal.c
 SRCS += ./Modules/Src/modUART.c
+SRCS += ./Modules/Src/modSDcard.c
 
 SRCS += ./Drivers/SWDrivers/Src/driverSWStorageManager.c
 SRCS += ./Drivers/SWDrivers/Src/driverSWSSD1306.c
@@ -33,6 +34,7 @@ SRCS += ./Drivers/HWDrivers/Src/driverHWSPI1.c
 SRCS += ./Drivers/HWDrivers/Src/driverHWSwitches.c
 SRCS += ./Drivers/HWDrivers/Src/driverHWStatus.c
 SRCS += ./Drivers/HWDrivers/Src/driverHWUART2.c
+SRCS += ./Drivers/HWDrivers/Src/driverHWSPI2.c
 
 SRCS += ./Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal.c
 SRCS += ./Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_adc.c
@@ -58,14 +60,21 @@ SRCS += ./Drivers/CMSIS/Device/ST/STM32F3xx/Source/Templates/system_stm32f3xx.c
 
 SRCS += ./Libraries/Src/libBuffer.c
 SRCS += ./Libraries/Src/libCRC.c
-SRCS += ./Libraries/Src/libLogos.c
-SRCS += ./Libraries/Src/libGLCDFont.c
-SRCS += ./Libraries/Src/libGraphics.c
+#SRCS += ./Libraries/Src/libLogos.c
+#SRCS += ./Libraries/Src/libGLCDFont.c
+#SRCS += ./Libraries/Src/libGraphics.c
 SRCS += ./Libraries/Src/libPacket.c
 SRCS += ./Libraries/Src/libRingBuffer.c
 SRCS += ./Libraries/Src/libMempools.c
 SRCS += ./Libraries/Src/libFIRfilter.c
 SRCS += ./Libraries/Src/libEKF.c
+SRCS += ./Libraries/FATFS/Src/diskio.c
+SRCS += ./Libraries/FATFS/Src/fatfs.c
+SRCS += ./Libraries/FATFS/Src/ff.c
+SRCS += ./Libraries/FATFS/Src/fatfs_sd.c
+SRCS += ./Libraries/FATFS/Src/user_diskio.c
+SRCS += ./Libraries/FATFS/Src/ff_gen_drv.c
+SRCS += ./Libraries/FATFS/Src/unicode.c
 
 SRCS += ./Config/confparser.c
 SRCS += ./Config/confxml.c
@@ -85,6 +94,7 @@ INCLUDE += -I ./Libraries/Inc
 INCLUDE += -I ./Modules/Inc
 INCLUDE += -I ./CubeMX/Inc
 INCLUDE += -I ./Config
+INCLUDE += -I ./Libraries/FATFS/Inc
 
 LINKER_SCRIPT = ./GCC/EBMS-linker.ld
 
@@ -188,3 +198,4 @@ clean:
 	-rm GCC/*.o
 	-rm Config/*.o
 	-rm Device/*.o
+	-rm Libraries/FATFS/Src/*.o

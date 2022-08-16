@@ -24,7 +24,7 @@
 #include "modPowerState.h"
 #include "modEffect.h"
 #include "modPowerElectronics.h"
-#include "modDisplay.h"
+//#include "modDisplay.h"
 #include "modConfig.h"
 #include "modStateOfCharge.h"
 #include "math.h"

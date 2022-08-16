@@ -31,7 +31,7 @@ modPowerElectronicsPackOperationalCellStatesTypedef packOperationalCellStateLast
 modPowerElectronicsPackStateTypedef *modOperationalStatePackStatehandle;
 modConfigGeneralConfigStructTypedef *modOperationalStateGeneralConfigHandle;
 modStateOfChargeStructTypeDef *modOperationalStateGeneralStateOfCharge;
-modDisplayDataTypedef modOperationalStateDisplayData;
+//modDisplayDataTypedef modOperationalStateDisplayData;
 uint32_t modOperationalStateChargerTimeout;
 uint32_t modOperationalStateChargedTimeout;
 uint32_t modOperationalStatePreChargeTimeout;
@@ -59,10 +59,10 @@ void modOperationalStateInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modOperationalStateForceOn = false;
 	modOperationalStateFirstChargeEvent = false;
 	chargerDisconnectEvent = false;
-	modDisplayInit();
+	//modDisplayInit();
 	
 	//Init Expansion temperature modules
-	driverSWADC128D818Init(modOperationalStateGeneralConfigHandle->noOfExpansionBoard, 8);
+	//driverSWADC128D818Init(modOperationalStateGeneralConfigHandle->noOfExpansionBoard, 8);
 	
 	modOperationalStateNotUsedTime = HAL_GetTick();
 	modOperationalStateNotUsedResetDelay = HAL_GetTick();
@@ -119,7 +119,7 @@ void modOperationalStateTask(void) {
 			};
 			
 			//modOperationalStateUpdateStates();
-			modDisplayShowInfo(DISP_MODE_SPLASH,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_SPLASH,modOperationalStateDisplayData);
 			break;
 		case OP_STATE_CHARGING:
 			// If chargeAllowed = false -> operational state balancing
@@ -174,13 +174,13 @@ void modOperationalStateTask(void) {
 			}
 			
 			modOperationalStateUpdateStates();
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
-			modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
-			modOperationalStateDisplayData.ChargerVoltage = fabs(modOperationalStatePackStatehandle->chargerVoltage);
-			modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
-			modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
-			modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
-			modDisplayShowInfo(DISP_MODE_CHARGE,modOperationalStateDisplayData);
+			// modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
+			// modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
+			// modOperationalStateDisplayData.ChargerVoltage = fabs(modOperationalStatePackStatehandle->chargerVoltage);
+			// modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
+			// modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
+			// modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
+			// modDisplayShowInfo(DISP_MODE_CHARGE,modOperationalStateDisplayData);
 			break;
 		case OP_STATE_PRE_CHARGE:
 			// in case of timeout: disable pre charge & go to error state
@@ -319,21 +319,21 @@ void modOperationalStateTask(void) {
 			
 			modOperationalStateUpdateStates();
 			
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
-			modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
-			modOperationalStateDisplayData.PackVoltage = fabs(modOperationalStatePackStatehandle->packVoltage);
-			modOperationalStateDisplayData.HighestTemp = fabs(modOperationalStatePackStatehandle->tempBatteryHigh);
-			modOperationalStateDisplayData.AverageTemp = fabs(modOperationalStatePackStatehandle->tempBatteryAverage);
-			modOperationalStateDisplayData.LowestTemp = fabs(modOperationalStatePackStatehandle->tempBatteryLow);
-			modOperationalStateDisplayData.Humidity = fabs(modOperationalStatePackStatehandle->humidity);
-			modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
-			modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
-			modOperationalStateDisplayData.DisplayStyle = modOperationalStateGeneralConfigHandle->displayStyle;
+			// modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
+			// modOperationalStateDisplayData.Current = fabs(modOperationalStatePackStatehandle->packCurrent);
+			// modOperationalStateDisplayData.PackVoltage = fabs(modOperationalStatePackStatehandle->packVoltage);
+			// modOperationalStateDisplayData.HighestTemp = fabs(modOperationalStatePackStatehandle->tempBatteryHigh);
+			// modOperationalStateDisplayData.AverageTemp = fabs(modOperationalStatePackStatehandle->tempBatteryAverage);
+			// modOperationalStateDisplayData.LowestTemp = fabs(modOperationalStatePackStatehandle->tempBatteryLow);
+			// modOperationalStateDisplayData.Humidity = fabs(modOperationalStatePackStatehandle->humidity);
+			// modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
+			// modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
+			// modOperationalStateDisplayData.DisplayStyle = modOperationalStateGeneralConfigHandle->displayStyle;
 			
-			modDisplayShowInfo(DISP_MODE_LOAD,modOperationalStateDisplayData);
+			// modDisplayShowInfo(DISP_MODE_LOAD,modOperationalStateDisplayData);
 			break;
 		case OP_STATE_BATTERY_DEAD:
-			modDisplayShowInfo(DISP_MODE_BATTERY_DEAD,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_BATTERY_DEAD,modOperationalStateDisplayData);
 			if(modDelayTick1ms(&modOperationalStateBatteryDeadDisplayTime,modOperationalStateGeneralConfigHandle->displayTimeoutBatteryDead)){
 				modOperationalStateSetNewState(OP_STATE_POWER_DOWN);
 				modOperationalStatePackStatehandle->powerDownDesired = true;
@@ -351,7 +351,7 @@ void modOperationalStateTask(void) {
 			if(!modOperationalStateGeneralConfigHandle->buzzerSignalPersistant)
 				modEffectChangeState(STAT_BUZZER,STAT_RESET);
 			modOperationalStateUpdateStates();
-			modDisplayShowInfo(DISP_MODE_POWEROFF,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_POWEROFF,modOperationalStateDisplayData);
 		  	if(modDelayTick1ms(&modOperationalStatePSPDisableDelay,modOperationalStateGeneralConfigHandle->powerDownDelay))	{					// Wait for the power down delay time to pass
 			  modOperationalStateTerminateOperation();															// Disable powersupply and store SoC
 			}
@@ -364,7 +364,7 @@ void modOperationalStateTask(void) {
 			}
 		
 			modOperationalStateTerminateOperation();																// Disable power and store SoC
-			modDisplayShowInfo(DISP_MODE_EXTERNAL,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_EXTERNAL,modOperationalStateDisplayData);
 			
 			break;
 		case OP_STATE_ERROR:
@@ -383,8 +383,8 @@ void modOperationalStateTask(void) {
 				modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
 			modPowerElectronicsDisableAll();
 			modOperationalStateUpdateStates();
-			modOperationalStateDisplayData.FaultCode = modOperationalStatePackStatehandle->faultState;
-			modDisplayShowInfo(DISP_MODE_ERROR,modOperationalStateDisplayData);
+			// modOperationalStateDisplayData.FaultCode = modOperationalStatePackStatehandle->faultState;
+			// modDisplayShowInfo(DISP_MODE_ERROR,modOperationalStateDisplayData);
 
 			break;
 		case OP_STATE_ERROR_PRECHARGE:
@@ -403,7 +403,7 @@ void modOperationalStateTask(void) {
 				modEffectChangeStateError(STAT_BUZZER,STAT_ERROR,modOperationalStatePackStatehandle->faultState);
 			modPowerElectronicsDisableAll();
 			modOperationalStateUpdateStates();
-			modDisplayShowInfo(DISP_MODE_ERROR_PRECHARGE,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_ERROR_PRECHARGE,modOperationalStateDisplayData);
 			break;
 		case OP_STATE_BALANCING: 
 			// update timeout time for balancing and use charging manager for enable state charge input
@@ -472,18 +472,18 @@ void modOperationalStateTask(void) {
 			}
 			
 			modOperationalStateUpdateStates();
-			modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
-			modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
-			modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
-			modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
-			modDisplayShowInfo(DISP_MODE_BALANCING,modOperationalStateDisplayData);
+			// modOperationalStateDisplayData.StateOfCharge = modOperationalStateGeneralStateOfCharge->stateofCharge;
+			// modOperationalStateDisplayData.CellMismatch = fabs(modOperationalStatePackStatehandle->cellVoltageMisMatch);
+			// modOperationalStateDisplayData.LowestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageLow);
+			// modOperationalStateDisplayData.HighestCellVoltage = fabs(modOperationalStatePackStatehandle->cellVoltageHigh);
+			// modDisplayShowInfo(DISP_MODE_BALANCING,modOperationalStateDisplayData);
 			modEffectChangeState(STAT_LED_POWER,STAT_BLINKSHORTLONG_100_20);								// Indicate balancing
 			break;
 		case OP_STATE_CHARGED:
 			modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
 			modEffectChangeState(STAT_LED_POWER,STAT_BLINKSHORTLONG_1000_4);								// Indicate Charged
 			modOperationalStateUpdateStates();
-			modDisplayShowInfo(DISP_MODE_CHARGED,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_CHARGED,modOperationalStateDisplayData);
 			break;
 		case OP_STATE_FORCEON:
 			if(modPowerElectronicsSetDisCharge(true))
@@ -506,7 +506,7 @@ void modOperationalStateTask(void) {
 				modOperationalStatePackStatehandle->powerDownDesired = true;
 			}
 			
-			modDisplayShowInfo(DISP_MODE_FORCED_ON,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_FORCED_ON,modOperationalStateDisplayData);
 			modEffectChangeState(STAT_LED_POWER,STAT_BLINKSHORTLONG_1000_4);								// Turn flash fast on debug and power LED
 			modOperationalStateUpdateStates();
 			break;
@@ -529,7 +529,7 @@ void modOperationalStateTask(void) {
 		if(modOperationalStateDelayedDisable(modOperationalStateGeneralConfigHandle->useCANDelayedPowerDown)) {
 			modOperationalStateSetNewFaultState(FAULT_CODE_CAN_DELAYED_POWER_DOWN);
 			modOperationalStateSetNewState(OP_STATE_POWER_DOWN);
-			modDisplayShowInfo(DISP_MODE_POWEROFF,modOperationalStateDisplayData);
+			//modDisplayShowInfo(DISP_MODE_POWEROFF,modOperationalStateDisplayData);
 			modOperationalStateUpdateFaultStates();
 			
 		}
@@ -563,7 +563,7 @@ void modOperationalStateTask(void) {
 	modOperationalStatePackStatehandle->powerOnLongButtonPress = modPowerStateGetLongButtonPressState(); 
 	
 	// Handle subtask-display to update display content
-	modDisplayTask();
+	//modDisplayTask();
 };
 
 void modOperationalStateUpdateStates(void) {

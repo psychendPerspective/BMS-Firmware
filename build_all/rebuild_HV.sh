@@ -12,6 +12,7 @@ make clean
 make build_args='-DENNOID_HV=1'
 cd $DIR
 cp $FWPATH/main.bin $COPYDIR/ENNOID-BMS.bin
+cp $FWPATH/main.elf $COPYDIR/ENNOID-BMS.elf
 
 # Clean
 cd $FWPATH

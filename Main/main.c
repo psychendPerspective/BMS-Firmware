@@ -18,7 +18,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+#include "main.h"
 #include "generalDefines.h"
 #include "stm32f3xx_hal.h"
 #include "modEffect.h"
@@ -32,6 +32,7 @@
 #include "modUART.h"
 #include "mainDataTypes.h"
 #include "modCAN.h"
+#include "modSDcard.h"
 
 //#include "safety_check.h"
 //#include "report_status.h"
@@ -72,7 +73,7 @@ int main(void) {
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
   modGetStateofChargeFromOCV();	                                            // Init SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
-  
+  modSDcard_Init();                                                         //Init and mount SD card
 	//safety_check_init(&packState, generalConfig);
   	//report_status_init(&packState); 
 		
