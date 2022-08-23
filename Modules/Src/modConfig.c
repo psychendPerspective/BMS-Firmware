@@ -366,7 +366,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->CANID						                                     = 10;					// CAN ID for CAN communication.
 	configLocation->CANIDStyle                                     	                 = CANIDStyleVESC;          		// CAN ID default Style.
 	configLocation->canBusSpeed                                    	                 = canSpeedBaud500k;        		// 500k CAN baud
-	configLocation->emitStatusOverCAN                              	                 = false;                   		// Send status over can.
+	configLocation->emitStatusOverCAN                              	                 = true;                   		// Send status over can.
 	configLocation->emitStatusProtocol                             	                 = canEmitProtocolVESC; 			// Can emit protocol set to MG style for backwards compatibility
 	configLocation->tempEnableMaskBMS                              	                 = 0x0001;				// Bitwise select what sensor to enable for the BMS (internal sensors).
 	configLocation->tempEnableMaskBattery                          	                 = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
@@ -402,7 +402,8 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->BMSApplication					                                 = electricVehicle;
 	configLocation->cellTypeUsed              										 = AMS_18650_2500mAh;           //type of cell used to determine OCV_vs_SOC lookup table
 	configLocation->maxSoftUnderVoltageErrorCount                                    = 10;
-	configLocation->maxAllowedChargingCurrent                                        = 1.60f;
+	configLocation->maxAllowedChargingCurrent                                        = 1.60f;						//overcurrent during charging limit, Charging current is positive
+	configLocation->maxAllowedDischargingCurrent                                     = -7.50f;						//overcurrent during discharging limit, discharging current is negative
 
 #elif ENNOID_SS
 	configLocation->noOfCellsSeries					= 18;					// Total number of cells in series in the battery pack

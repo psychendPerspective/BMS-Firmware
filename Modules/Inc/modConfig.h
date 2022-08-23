@@ -130,7 +130,8 @@ typedef struct {
 	uint8_t		BMSApplication;
 	uint8_t     cellTypeUsed;
 	uint8_t     maxSoftUnderVoltageErrorCount;										 //max repeated error for cell soft undervoltage error
-	float       maxAllowedChargingCurrent;											 //overcurrent during charging limit 																
+	float       maxAllowedChargingCurrent;											 //overcurrent during charging limit
+	float       maxAllowedDischargingCurrent 										 //overcurrent during discharging limit						
 } modConfigGeneralConfigStructTypedef;
 
 modConfigGeneralConfigStructTypedef* modConfigInit(void);

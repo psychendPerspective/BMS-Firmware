@@ -38,7 +38,7 @@
 
 /* USER CODE BEGIN 0 */
 volatile uint8_t FatFsCnt = 0;
-volatile uint16_t Timer1, Timer2;
+volatile uint16_t Timer1, Timer2; //SD card driver parameters, see fatfs_sd.c
 
 void SDTimer_Handler(void)
 {

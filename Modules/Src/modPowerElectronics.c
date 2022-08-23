@@ -137,6 +137,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsPackStateHandle->buzzerOn								  = false;
 	modPowerElectronicsPackStateHandle->powerDownDesired						  = false;
 	modPowerElectronicsPackStateHandle->powerOnLongButtonPress					  = false;
+	modPowerElectronicsPackStateHandle->cycleCount                                = 0;
 	
 	// init the cell module variables empty
 	for( uint8_t modulePointer = 0; modulePointer < NoOfCellMonitorsPossibleOnBMS; modulePointer++) {
@@ -649,8 +650,8 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 };
 
 void modPowerElectronicsSubTaskCurrentWatch(void){
-	// Handle over current limits  //TO DO :check discharge current limit 
-	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedCurrent){
+	// Handle over current limits (SC current), https://floating-point-gui.de/
+	if(fabs(modPowerElectronicsPackStateHandle->packCurrent) >= fabs(modPowerElectronicsGeneralConfigHandle->maxAllowedCurrent)){
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 			modPowerElectronicsPackStateHandle->chargeAllowed = false;
@@ -658,6 +659,14 @@ void modPowerElectronicsSubTaskCurrentWatch(void){
 
 	//Handle overcurrent during charging
 	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedChargingCurrent)
+	{
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}
+
+	//Handle overcurrent during discharging 
+	if(modPowerElectronicsPackStateHandle->packCurrent < modPowerElectronicsGeneralConfigHandle->maxAllowedDischargingCurrent)
 	{
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;

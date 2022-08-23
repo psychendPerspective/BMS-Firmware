@@ -139,7 +139,8 @@ typedef struct {
 	float packCurrentVREF[1][1];
 	float zeroCurrentVoltage[1][12];
 	float zeroCurrentVREF[1][12];
-	float movingAvgHallEffectpackCurrent, hallEffectpackCurrent, HallEffectcurrentOffset; 
+	float movingAvgHallEffectpackCurrent, hallEffectpackCurrent, HallEffectcurrentOffset;
+	uint32_t cycleCount; 
 	
 	// Slave modules -> TODO move into struct.
 	float    cellModuleVoltages[NoOfCellMonitorsPossibleOnBMS][18];

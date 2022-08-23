@@ -73,9 +73,9 @@ int main(void) {
 	modPowerElectronicsInit(&packState,generalConfig);												// Will measure all voltages and store them in packState
   modGetStateofChargeFromOCV();	                                            // Init SoC from Open Cirucit Voltage 
 	modOperationalStateInit(&packState,generalConfig,generalStateOfCharge);		// Will keep track of and control operational state (eg. normal use / charging / balancing / power down)
-  modSDcard_Init();                                                         //Init and mount SD card
+  modSDcard_Init(&packState, generalConfig);                                //Init and mount SD card
 	//safety_check_init(&packState, generalConfig);
-  	//report_status_init(&packState); 
+  //report_status_init(&packState); 
 		
   while(true) {
 		modEffectTask();
@@ -84,13 +84,13 @@ int main(void) {
 		modUARTTask();
 		modCANTask();
 		mainWatchDogReset();
-		
 
 		if(modPowerElectronicsTask())																						// Handle power electronics task
     {
       modStateOfChargeProcess();                                            //Calculate SoC 
     }
 
+    modSDcard_logtoCSV();                          //Log to CSV file based on logging interval given in modSDcard.h
     //safety_check_task(); 
     //report_status_task();																						// If there is new data handle SoC estimation
   }

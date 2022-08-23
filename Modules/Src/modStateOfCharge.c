@@ -68,13 +68,14 @@ void modStateOfChargeProcess(void){
 	modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
 	modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
 
-	// Store SoC every 'stateOfChargeStoreInterval'
+	// Store SoC every 'stateOfChargeStoreInterval' //TO DO:Debug issues
 	if(modDelayTick1ms(&modStateOfChargeStoreSoCTick,modStateOfChargeGeneralConfigHandle->stateOfChargeStoreInterval) && !modStateOfChargePowerDownSavedFlag && (lastGeneralStateOfCharge.remainingCapacityAh != modStateOfChargeGeneralStateOfCharge.remainingCapacityAh))
 		modStateOfChargeStoreStateOfCharge();
 };
 
 bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 	bool returnVal = false;
+	readSoCfromOCV = true;
 	if(driverSWStorageManagerStateOfChargeEmpty)
 	{
 		// TODO: Store type of cell used 

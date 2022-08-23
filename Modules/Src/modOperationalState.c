@@ -459,7 +459,7 @@ void modOperationalStateTask(void) {
 			//Handle charger disconnect only when charger is disconnected, not when pack current < than charger enabled threshold 
 			if(modOperationalStateGeneralConfigHandle->BMSApplication == electricVehicle){
 				//modOperationalStateHandleChargerDisconnect(OP_STATE_INIT);
-				modOperationalStateHandleChargerDisconnectBalancing(OP_STATE_INIT);
+				modOperationalStateHandleChargerDisconnectBalancing(OP_STATE_INIT); //change to power down state?
 			}else{
 				modOperationalStateHandleChargerDisconnectBalancing(OP_STATE_POWER_DOWN);
 			}
@@ -640,10 +640,10 @@ void modOperationalStateHandleChargerDisconnectBalancing(OperationalStateTypedef
 };
 
 void modOperationalStateTerminateOperation(void) {	
-	// Store the state of charge data
+	// Store the state of charge data //TO DO:Debug issues
 	modStateOfChargePowerDownSave();																						// Store the SoC data
 	
-	//Put the MCU in standby/sleep mode 
+	/*********TO DO: Put the MCU in standby/sleep mode *****************/
 	//HAL_SuspendTick();
   	//HAL_PWR_EnableSleepOnExit();
 	/* Enter Stop Mode */
