@@ -1,11 +1,7 @@
-// 2021/02/18 - ENNOID-BMS
-// Specific firmwares can be developped upon request for special CAN commands & functionnalities. 
-// Please note that CAN functionnalities are under constant evolution through the frequent firmware updates.
 
-// ENNOID-BMS firmware settings for CAN:
+// Xanadu-BMS firmware settings for CAN:
 	// CAN speed: Selectable with tool app 125kbit/s, 250kbit/s & 500kbit/s,
 	// CAN ID : Selectable with tool app 1 to 254, correspond to the device specific unique CAN adress on the bus
-	// ID Style: Selectable with tool app ENNOID/DIEBIEMS/VESC or E-Foiler (Byte order processing, please use ENNOID/DIEBIEMS/VESC for your application)
 
 // CAN protocol: Extended ID
 	Bit order during default CAN messages with Extended ID:
@@ -15,45 +11,189 @@
 	//Only bits related to ID, DATA, DLC, & CRC are handled directly by the user firmware
 	// RTR == 0, 
 
-//Specific to ENNOID-BMS/DIEBIEMS/VESC 
-	// The ID is splitted in two parts: bits(7-0) = CAN_PACKET_ID & bits(15-8) = Destination ID. Other bits are unused/available with the current implementation
-	// CAN_PACKET_ID: See implementation below
+//CAN format used to transmit CAN frames
+	// The ID is split into two parts: bits(7-0) = CAN_PACKET_ID & bits(15-8) = Destination ID. Other bits are unused/available with the current implementation
 	// Destination ID: This is the adress at which you want your message to be delivered to
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Communication commands over CAN
 // After CAN message reception, if the Destination ID == CAN ID, the BMS will receive & process the CAN message
 // Broadcast is possible while using the device own CAN ID for transmitting
-// Please note that some VESC specific commands are not implemented for the ENNOID-BMS, but are still included for compatibility purposes
 
-typedef enum {
-	CAN_PACKET_ESC_SET_DUTY = 0,
-	CAN_PACKET_ESC_SET_CURRENT,
-	CAN_PACKET_ESC_SET_CURRENT_BRAKE,
-	CAN_PACKET_ESC_SET_RPM,
-	CAN_PACKET_ESC_SET_POS,
-	CAN_PACKET_FILL_RX_BUFFER,									// 5 , Used to process messages that are normally transmitted over UART or USB (see UART, CAN_FORWARD)
-	CAN_PACKET_FILL_RX_BUFFER_LONG,								// 6 , Used to process messages that are normally transmitted over UART or USB (see UART, CAN_FORWARD)
-	CAN_PACKET_PROCESS_RX_BUFFER,								// 7 , Used to process messages that are normally transmitted over UART or USB (see UART, CAN_FORWARD)
-	CAN_PACKET_PROCESS_SHORT_BUFFER,							// 8 , Used to process messages that are normally transmitted over UART or USB (see UART, CAN_FORWARD)
-	CAN_PACKET_ESC_STATUS,
-	CAN_PACKET_ESC_SET_CURRENT_REL,
-	CAN_PACKET_ESC_SET_CURRENT_BRAKE_REL,
-	CAN_PACKET_BMS_STATUS_MAIN_IV = 30,							// 30, Transmit the BMS current, pack voltage every 0.5 seconds with modCANSendSimpleStatusSlow(), Destination ID == CANID (broadcasted)
-	CAN_PACKET_BMS_STATUS_CELLVOLTAGE,							// 31, Transmit the BMS cell voltage high & cell voltage low every 0.5 seconds with modCANSendSimpleStatusSlow(), Destination ID == CANID (broadcasted)
-	CAN_PACKET_BMS_STATUS_THROTTLE_CH_DISCH_BOOL, 				// 32, Transmit the desired throttle & BMS status (SOC, load, voltage, booleans) every 0.2 seconds with modCANSendSimpleStatusFast(), Destination ID == CANID (broadcasted)
-	CAN_PACKET_BMS_STATUS_TEMPERATURES,							// 33, To be implemented
-	CAN_PACKET_BMS_STATUS_AUX_IV_SAFETY_WATCHDOG,				// 34, To be implemented
-	CAN_PACKET_BMS_KEEP_ALIVE_SAFETY,							// 35, To be implemented
-	CAN_PACKET_BMS_STATUS_TEMP_INDIVIDUAL,						// 36, To be implemented
-	CAN_PACKET_SLS_STATUS_CURRENT_RPM = 40,
-	CAN_PACKET_SLS_STATUS_TEMPERATURE,
-	CAN_PACKET_SSR_STATUS_MAIN_V_TEMP = 60,
-	CAN_PACKET_SSR_STATUS_MAIN_LOAD0,
-	CAN_PACKET_SSR_STATUS_MAIN_LOAD1	
-} CAN_PACKET_ID;
+//For the CAN PACKET IDs used, please refer mainDataTypes.h (enum - CAN_PACKET_ID)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Following is the code transmitting parameters through CAN:
+void modCANSendCustom(void)
+{
+	int32_t send_index = 0;
+	uint8_t buffer[8];
+
+/***********************        CAN_PACKET_BMS_V_TOT Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Pack Voltage(V)
+		//* b[4] - b[7]: Load Voltage(V)
+		
+/**************************************************************************************************/	
+
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->loCurrentLoadVoltage, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_V_TOT), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_I Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Pack Current(A)
+		//* b[4] - b[7]: Pack Power(W)
+
+/**************************************************************************************************/
+
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packPower, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_I), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_AH_WH Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Ah Counter
+		//* b[4] - b[7]: Wh Counter
+		
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index); //To do : define AhCounter
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index); //To do : define WhCounter
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_AH_WH), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_SOC_CAPACITY Structure      *******************************/
+		//*
+		//* b[0] - b[3]: SoC
+		//* b[4] - b[7]: Remaining Capacity
+		
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->SoC, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->SoCCapacityAh, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID, CAN_PACKET_BMS_SOC_CAPACITY), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_V_CELL Structure      *******************************/
+		//*
+		//* b[0]: starting cell voltage index
+		//* b[1]: total cell voltages
+		//* b[2] - b[3]: cell voltage value
+		//* b[4] - b[5]: cell voltage value
+		//* b[6] - b[7]: cell voltage value
+		
+/**************************************************************************************************/
+	uint8_t cellPointer = 0;
+	uint8_t totalNoOfCells = modCANGeneralConfigHandle->noOfCellsSeries*modCANGeneralConfigHandle->noOfParallelModules;
+	while(cellPointer < totalNoOfCells){
+		send_index = 0;
+		buffer[send_index++] = cellPointer;
+		buffer[send_index++] = totalNoOfCells;
+
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_V_CELL), buffer, send_index);
+	}
+
+	send_index = 0;
+	buffer[send_index++] = totalNoOfCells;
+	uint64_t bal_state = 0;
+	for (int i = 0; i < totalNoOfCells; i++) {
+		bal_state |= (uint64_t)modCANPackStateHandle->cellVoltagesIndividual[i].cellBleedActive << i;
+	}
+	buffer[send_index++] = (bal_state >> 48) & 0xFF;
+	buffer[send_index++] = (bal_state >> 40) & 0xFF;
+	buffer[send_index++] = (bal_state >> 32) & 0xFF;
+	buffer[send_index++] = (bal_state >> 24) & 0xFF;
+	buffer[send_index++] = (bal_state >> 16) & 0xFF;
+	buffer[send_index++] = (bal_state >> 8) & 0xFF;
+	buffer[send_index++] = (bal_state >> 8) & 0xFF;
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_BAL), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_TEMPS Structure      *******************************/
+		//*
+		//* b[0]: starting temp sensor index
+		//* b[1]: total number of temp sensors
+		//* b[2] - b[3]: temp sensor value
+		//* b[4] - b[5]: temp sensor value
+		//* b[6] - b[7]: temp sensor value
+		
+/**************************************************************************************************/
+	uint8_t auxPointer = 0;
+	uint8_t totalNoOfAux =modCANGeneralConfigHandle->cellMonitorICCount*modCANGeneralConfigHandle->noOfTempSensorPerModule;
+	while (auxPointer < totalNoOfAux ) {
+		send_index = 0;
+		buffer[send_index++] = auxPointer;
+		buffer[send_index++] = totalNoOfAux;
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_TEMPS), buffer, send_index);
+	}
+/***********************        CAN_PACKET_BMS_V_CELL_STAT Structure      *******************************/
+		//*
+		//* b[0] - b[1]: Highest cell voltage
+		//* b[2] - b[3]: Lowest cell voltage
+		//* b[4] - b[5]: Max cell imbalance voltage
+
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageHigh, 1e3, &send_index);
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageLow, 1e3, &send_index);
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageMisMatch, 1e3, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID, CAN_PACKET_BMS_V_CELL_STAT), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_STATUS Structure      *******************************/
+		//*
+		//* b[0]: BAT_TEMP_MAX (-128 to +127 degC)
+		//* b[1]: BAT_TEMP_MIN (-128 to +127 degC)
+		//* b[2]: SoH (0 - 255)
+		//* b[3]: Cycle Count
+		//* b[4]: Operational State
+		//* b[5]: Fault State
+		//* b[6]: Discharge throttle value
+		//* b[7]: State bitfield:
+		//* [B7      	   B6               B5              B4         B3         B2       B1       B0      ]
+		//* [PACK_IN_SOA   Cooling_STAT     PreCHG_STAT     DSG_OK     IS_DSG     CHG_OK   IS_BAL   IS_CHG  ]
+/**************************************************************************************************/
+		
+	send_index = 0;
+	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryHigh;
+	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryLow;
+	buffer[send_index++] = (uint8_t) (1 * 255.0); //TO DO:define SoH
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->cycleCount;
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->operationalState;
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->faultState;
+	libBufferAppend_uint8(buffer, modCANPackStateHandle->throttleDutyDischarge/10,&send_index);
+	buffer[send_index++] =
+			(modCANPackStateHandle->chargeDesired << 0) | 
+			(modCANPackStateHandle->balanceActive << 1) |
+			(modCANPackStateHandle->chargeAllowed << 2) |
+			(modCANPackStateHandle->disChargeDesired << 3) |
+			(modCANPackStateHandle->disChargeLCAllowed << 4) |
+			(modCANPackStateHandle->prechargeStatus << 5) |
+			(modCANPackStateHandle->coolingDesired << 6) |
+			(modCANPackStateHandle->packInSOADischarge	<< 7);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_STATUS), buffer, send_index);
+}
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Code examples:
+
+
+Code examples for slow and fast messages, not being used currently
 /*
 void modCANSendSimpleStatusFast(void) {
 	int32_t sendIndex;
@@ -152,3 +292,6 @@ unsigned short libCRCCalcCRC16(unsigned char *buf, unsigned int len) {
 	}
 	return cksum;
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -125,7 +125,7 @@ typedef struct {
 	uint8_t  balanceActive;
 	uint8_t  powerButtonActuated;
 	uint8_t  packInSOADischarge;
-  uint8_t  packInSOACharge;
+  	uint8_t  packInSOACharge;
 	uint8_t  powerDownDesired;
 	uint8_t  powerOnLongButtonPress;
 	uint8_t  buzzerOn;

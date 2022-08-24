@@ -367,7 +367,7 @@ void modConfigLoadDefaultConfig(modConfigGeneralConfigStructTypedef *configLocat
 	configLocation->CANIDStyle                                     	                 = CANIDStyleVESC;          		// CAN ID default Style.
 	configLocation->canBusSpeed                                    	                 = canSpeedBaud500k;        		// 500k CAN baud
 	configLocation->emitStatusOverCAN                              	                 = true;                   		// Send status over can.
-	configLocation->emitStatusProtocol                             	                 = canEmitProtocolVESC; 			// Can emit protocol set to MG style for backwards compatibility
+	configLocation->emitStatusProtocol                             	                 = canEmitProtocolCustom; 			// Can emit protocol set to define what can messages will be sent
 	configLocation->tempEnableMaskBMS                              	                 = 0x0001;				// Bitwise select what sensor to enable for the BMS (internal sensors).
 	configLocation->tempEnableMaskBattery                          	                 = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).
   	configLocation->tempEnableMaskExpansion                         	             = 0xFFFF;				// Bitwise select what sensor to enable for the battery (external sensors).

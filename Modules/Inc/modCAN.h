@@ -73,6 +73,7 @@ void		modCANOpenChargerCheckPresent(void);
 void		modCANOpenBMSSendHeartBeat(void);
 void		modCANOpenChargerStartNode(void);
 void		modCANOpenChargerSetCurrentVoltageReady(float current,float voltage,bool ready);
+void        modCANSendCustom(void);
 
 uint16_t 	modCANGetVESCCurrent(void);
 

@@ -174,6 +174,11 @@ void modCANTask(void){
 			if(modDelayTick1ms(&modCANSendStatusVESCLastTisk,1000)) 
 				modCANSendStatusVESC();
 		}
+		else if(modCANGeneralConfigHandle->emitStatusProtocol == canEmitProtocolCustom)
+		{
+			if(modDelayTick1ms(&modCANSendStatusVESCLastTisk,1000)) 
+				modCANSendCustom();
+		}
 	}
 	
 	if(modDelayTick1ms(&modCANSafetyCANMessageTimeout,5000))
@@ -386,6 +391,173 @@ void modCANSendStatusVESC(void){
 		modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_SOC_SOH_TEMP_STAT), buffer, send_index);
 
 
+}
+
+void modCANSendCustom(void)
+{
+	int32_t send_index = 0;
+	uint8_t buffer[8];
+
+/***********************        CAN_PACKET_BMS_V_TOT Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Pack Voltage(V)
+		//* b[4] - b[7]: Load Voltage(V)
+		
+/**************************************************************************************************/	
+
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->loCurrentLoadVoltage, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_V_TOT), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_I Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Pack Current(A)
+		//* b[4] - b[7]: Pack Power(W)
+
+/**************************************************************************************************/
+
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packPower, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_I), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_AH_WH Structure      *******************************/
+		//*
+		//* b[0] - b[3]: Ah Counter
+		//* b[4] - b[7]: Wh Counter
+		
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index); //To do : define AhCounter
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index); //To do : define WhCounter
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_AH_WH), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_SOC_CAPACITY Structure      *******************************/
+		//*
+		//* b[0] - b[3]: SoC
+		//* b[4] - b[7]: Remaining Capacity
+		
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->SoC, &send_index);
+	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->SoCCapacityAh, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID, CAN_PACKET_BMS_SOC_CAPACITY), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_V_CELL Structure      *******************************/
+		//*
+		//* b[0]: starting cell voltage index
+		//* b[1]: total cell voltages
+		//* b[2] - b[3]: cell voltage value
+		//* b[4] - b[5]: cell voltage value
+		//* b[6] - b[7]: cell voltage value
+		
+/**************************************************************************************************/
+	uint8_t cellPointer = 0;
+	uint8_t totalNoOfCells = modCANGeneralConfigHandle->noOfCellsSeries*modCANGeneralConfigHandle->noOfParallelModules;
+	while(cellPointer < totalNoOfCells){
+		send_index = 0;
+		buffer[send_index++] = cellPointer;
+		buffer[send_index++] = totalNoOfCells;
+
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		if (cellPointer < totalNoOfCells) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltagesIndividual[cellPointer++].cellVoltage, 1e3, &send_index);
+		}
+		modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_V_CELL), buffer, send_index);
+	}
+
+	send_index = 0;
+	buffer[send_index++] = totalNoOfCells;
+	uint64_t bal_state = 0;
+	for (int i = 0; i < totalNoOfCells; i++) {
+		bal_state |= (uint64_t)modCANPackStateHandle->cellVoltagesIndividual[i].cellBleedActive << i;
+	}
+	buffer[send_index++] = (bal_state >> 48) & 0xFF;
+	buffer[send_index++] = (bal_state >> 40) & 0xFF;
+	buffer[send_index++] = (bal_state >> 32) & 0xFF;
+	buffer[send_index++] = (bal_state >> 24) & 0xFF;
+	buffer[send_index++] = (bal_state >> 16) & 0xFF;
+	buffer[send_index++] = (bal_state >> 8) & 0xFF;
+	buffer[send_index++] = (bal_state >> 8) & 0xFF;
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_BAL), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_TEMPS Structure      *******************************/
+		//*
+		//* b[0]: starting temp sensor index
+		//* b[1]: total number of temp sensors
+		//* b[2] - b[3]: temp sensor value
+		//* b[4] - b[5]: temp sensor value
+		//* b[6] - b[7]: temp sensor value
+		
+/**************************************************************************************************/
+	uint8_t auxPointer = 0;
+	uint8_t totalNoOfAux =modCANGeneralConfigHandle->cellMonitorICCount*modCANGeneralConfigHandle->noOfTempSensorPerModule;
+	while (auxPointer < totalNoOfAux ) {
+		send_index = 0;
+		buffer[send_index++] = auxPointer;
+		buffer[send_index++] = totalNoOfAux;
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		if (auxPointer < totalNoOfAux) {
+			libBufferAppend_float16(buffer, modCANPackStateHandle->auxVoltagesIndividual[auxPointer++].auxVoltage, 1e2, &send_index);
+		}
+		modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_TEMPS), buffer, send_index);
+	}
+/***********************        CAN_PACKET_BMS_V_CELL_STAT Structure      *******************************/
+		//*
+		//* b[0] - b[1]: Highest cell voltage
+		//* b[2] - b[3]: Lowest cell voltage
+		//* b[4] - b[5]: Max cell imbalance voltage
+
+/**************************************************************************************************/
+	send_index = 0;
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageHigh, 1e3, &send_index);
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageLow, 1e3, &send_index);
+	libBufferAppend_float16(buffer, modCANPackStateHandle->cellVoltageMisMatch, 1e3, &send_index);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID, CAN_PACKET_BMS_V_CELL_STAT), buffer, send_index);
+
+/***********************        CAN_PACKET_BMS_STATUS Structure      *******************************/
+		//*
+		//* b[0]: BAT_TEMP_MAX (-128 to +127 degC)
+		//* b[1]: BAT_TEMP_MIN (-128 to +127 degC)
+		//* b[2]: SoH (0 - 255)
+		//* b[3]: Cycle Count
+		//* b[4]: Operational State
+		//* b[5]: Fault State
+		//* b[6]: Discharge throttle value
+		//* b[7]: State bitfield:
+		//* [B7      	   B6               B5              B4         B3         B2       B1       B0      ]
+		//* [PACK_IN_SOA   Cooling_STAT     PreCHG_STAT     DSG_OK     IS_DSG     CHG_OK   IS_BAL   IS_CHG  ]
+/**************************************************************************************************/
+		
+	send_index = 0;
+	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryHigh;
+	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryLow;
+	buffer[send_index++] = (uint8_t) (1 * 255.0); //TO DO:define SoH
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->cycleCount;
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->operationalState;
+	buffer[send_index++] = (uint8_t) modCANPackStateHandle->faultState;
+	libBufferAppend_uint8(buffer, modCANPackStateHandle->throttleDutyDischarge/10,&send_index);
+	buffer[send_index++] =
+			(modCANPackStateHandle->chargeDesired << 0) | 
+			(modCANPackStateHandle->balanceActive << 1) |
+			(modCANPackStateHandle->chargeAllowed << 2) |
+			(modCANPackStateHandle->disChargeDesired << 3) |
+			(modCANPackStateHandle->disChargeLCAllowed << 4) |
+			(modCANPackStateHandle->prechargeStatus << 5) |
+			(modCANPackStateHandle->coolingDesired << 6) |
+			(modCANPackStateHandle->packInSOADischarge	<< 7);
+	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_STATUS), buffer, send_index);
+	
 }
 
 void CAN_RX0_IRQHandler(void) {

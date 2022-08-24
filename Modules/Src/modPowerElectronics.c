@@ -1022,7 +1022,8 @@ void modPowerElectronicsCheckPackSOA(void) {
 	bool outsideLimitsCharge    = false;	
 	
 	outsideLimitsBMS |= (modPowerElectronicsVinErrorCount >= VinErrorThreshold) ? true : false;
-	
+
+	#if BMS_BOARD_NTC
 	// Check BMS Limits
 	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBMS) {
 		outsideLimitsBMS       |= (modPowerElectronicsPackStateHandle->tempBMSHigh     > (modPowerElectronicsGeneralConfigHandle->allowedTempBMSMax + hysteresysBMS) ) ? true : false;
@@ -1033,6 +1034,7 @@ void modPowerElectronicsCheckPackSOA(void) {
 		else
 			hysteresysBMS = 2.0f;
 	}
+	#endif
 	
 	// Check Battery Limits discharge
 	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery || modPowerElectronicsGeneralConfigHandle->tempEnableMaskExpansion) {

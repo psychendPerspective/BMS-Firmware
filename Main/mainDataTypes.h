@@ -687,7 +687,7 @@ typedef enum {
 	CAN_PACKET_BMS_AH_WH_CHG_TOTAL,
 	CAN_PACKET_BMS_AH_WH_DIS_TOTAL,
 
-	//ENNOIS-BMS specific 
+	//EBMS specific 
 	CAN_PACKET_EBMS_STATUS_MAIN_IV = 70,
 	CAN_PACKET_EBMS_STATUS_CELLVOLTAGE,
 	CAN_PACKET_EBMS_STATUS_THROTTLE_CH_DISCH_BOOL,
@@ -695,6 +695,11 @@ typedef enum {
 	CAN_PACKET_EBMS_STATUS_AUX_IV_SAFETY_WATCHDOG,
 	CAN_PACKET_EBMS_KEEP_ALIVE_SAFETY,
 	CAN_PACKET_EBMS_STATUS_TEMP_INDIVIDUAL,	
+
+	//XANADU_BMS specific
+	CAN_PACKET_BMS_SOC_CAPACITY,
+	CAN_PACKET_BMS_V_CELL_STAT,
+	CAN_PACKET_BMS_STATUS
 } CAN_PACKET_ID;
 
 typedef struct {
@@ -820,7 +825,8 @@ typedef enum {
 	canEmitProtocolNone = 0,
   	canEmitProtocolDieBieEngineering,
 	canEmitProtocolMGElectronics,
-	canEmitProtocolVESC
+	canEmitProtocolVESC,
+	canEmitProtocolCustom
 } canEmitProtocol;
 
 typedef struct {
