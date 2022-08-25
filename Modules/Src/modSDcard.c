@@ -56,7 +56,7 @@ uint8_t modSDcard_Init(modPowerElectronicsPackStateTypedef *packState, modConfig
     /* Move the offset to the end of the file */
     fresult = f_lseek(&bms_log_file, f_size(&bms_log_file));
     /* Write logging file header */
-    f_puts("\n Timestamp(s),Pack_Voltage(V), Pack_Current(A),Pack_Power(W),SoC(percent),Remaining Capacity(Ah),Operational_State,Fault_State,Cycle_Count,CV_Max(V),CV_Min(V),CV_Max_Imbalance(V),Battery_Temp_Max(degC),Battery_Temp_Min(degC),Battery_Temp_Avg(degC),CV_1(V),CV_2(V),CV_3(V),CV_4(V),CV_5(V),CV_6(V),CV_7(V),CV_8(V),CV_9(V),CV_10(V),CV_11(V),CV_12(V),CV_13(V),CV_14(V),CV_15(V),CV_16(V),CV_17(V),CV_18(V),Temp_1(degC),Temp_2(degC),Temp_3(degC),Temp_4(degC),Temp_5(degC),Temp_6(degC),Temp_7(degC)\n", &bms_log_file);
+    f_puts("\n Timestamp(s),Pack_Voltage(V), Pack_Current(A),Pack_Power(W),SoC(percent),Remaining Capacity(Ah),Operational_State,Fault_State,Cycle_Count,SoH(percent),CV_Max(V),CV_Min(V),CV_Max_Imbalance(V),Battery_Temp_Max(degC),Battery_Temp_Min(degC),Battery_Temp_Avg(degC),CV_1(V),CV_2(V),CV_3(V),CV_4(V),CV_5(V),CV_6(V),CV_7(V),CV_8(V),CV_9(V),CV_10(V),CV_11(V),CV_12(V),CV_13(V),CV_14(V),CV_15(V),CV_16(V),CV_17(V),CV_18(V),Temp_1(degC),Temp_2(degC),Temp_3(degC),Temp_4(degC),Temp_5(degC),Temp_6(degC),Temp_7(degC)\n", &bms_log_file);
     /* Close the log file */
     fresult = f_close(&bms_log_file);
     if(fresult == FR_OK)
@@ -92,7 +92,7 @@ void modSDcard_logtoCSV(void)
         if(fresult != FR_OK)
             return;
         #ifdef BMS_16S_CONFIG
-        snprintf(stringBuffer,BUFFER_SIZE, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \r\n",
+        snprintf(stringBuffer,BUFFER_SIZE, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \r\n",
                 (HAL_GetTick()/1000.0), 
                 modSDcardPackStateHandle->packVoltage,
                 modSDcardPackStateHandle->packCurrent,
@@ -102,6 +102,7 @@ void modSDcard_logtoCSV(void)
                 modSDcardPackStateHandle->operationalState,
                 modSDcardPackStateHandle->faultState,
                 modSDcardPackStateHandle->cycleCount,
+                modSDcardPackStateHandle->SoH,
                 modSDcardPackStateHandle->cellVoltageHigh,
                 modSDcardPackStateHandle->cellVoltageLow,
                 modSDcardPackStateHandle->cellVoltageMisMatch,

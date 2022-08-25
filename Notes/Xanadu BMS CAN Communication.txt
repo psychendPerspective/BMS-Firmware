@@ -53,16 +53,6 @@ void modCANSendCustom(void)
 	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packPower, &send_index);
 	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_I), buffer, send_index);
 
-/***********************        CAN_PACKET_BMS_AH_WH Structure      *******************************/
-		//*
-		//* b[0] - b[3]: Ah Counter
-		//* b[4] - b[7]: Wh Counter
-		
-/**************************************************************************************************/
-	send_index = 0;
-	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index); //To do : define AhCounter
-	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index); //To do : define WhCounter
-	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_AH_WH), buffer, send_index);
 
 /***********************        CAN_PACKET_BMS_SOC_CAPACITY Structure      *******************************/
 		//*

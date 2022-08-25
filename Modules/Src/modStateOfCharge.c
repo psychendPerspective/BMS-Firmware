@@ -81,7 +81,7 @@ bool modStateOfChargeStoreAndLoadDefaultStateOfCharge(void){
 		// TODO: Store type of cell used 
 		modStateOfChargeStructTypeDef defaultStateOfCharge;
 		defaultStateOfCharge.stateofCharge = 0.0f;
-		defaultStateOfCharge.generalStateOfHealth = 0.0f;
+		defaultStateOfCharge.generalStateOfHealth = 100.0f;
 		defaultStateOfCharge.remainingCapacityAh = 0.0f;
 		defaultStateOfCharge.remainingCapacityWh = 0.0f;
 		
@@ -262,6 +262,7 @@ void modGetStateofChargeFromOCV()
 
 		modStateOfChargePackStatehandle->SoC = modStateOfChargeGeneralStateOfCharge.stateofCharge;
 		modStateOfChargePackStatehandle->SoCCapacityAh = modStateOfChargeGeneralStateOfCharge.remainingCapacityAh;
+		modStateOfChargePackStatehandle->SoH = modStateOfChargeGeneralStateOfCharge.generalStateOfHealth = 100.0f;
 		driverSWStorageManagerStoreStruct(&modStateOfChargeGeneralStateOfCharge,STORAGE_STATEOFCHARGE);
 		driverSWStorageManagerStateOfChargeEmpty = false;
 	}

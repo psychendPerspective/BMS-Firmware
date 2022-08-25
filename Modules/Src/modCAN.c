@@ -427,10 +427,10 @@ void modCANSendCustom(void)
 		//* b[4] - b[7]: Wh Counter
 		
 /**************************************************************************************************/
-	send_index = 0;
-	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packCurrent, &send_index); //To do : define AhCounter
-	libBufferAppend_float32_auto(buffer, modCANPackStateHandle->packVoltage, &send_index); //To do : define WhCounter
-	modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_AH_WH), buffer, send_index);
+	// send_index = 0;
+	// libBufferAppend_float32_auto(buffer, modCANPackStateHandle->AhCounter, &send_index); //To do : implement AhCounter
+	// libBufferAppend_float32_auto(buffer, modCANPackStateHandle->WhCounter, &send_index); //To do : implement WhCounter
+	// modCANTransmitExtID(modCANGetCANID(modCANGeneralConfigHandle->CANID,CAN_PACKET_BMS_AH_WH), buffer, send_index);
 
 /***********************        CAN_PACKET_BMS_SOC_CAPACITY Structure      *******************************/
 		//*
@@ -542,7 +542,7 @@ void modCANSendCustom(void)
 	send_index = 0;
 	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryHigh;
 	buffer[send_index++] = (int8_t) modCANPackStateHandle->tempBatteryLow;
-	buffer[send_index++] = (uint8_t) (1 * 255.0); //TO DO:define SoH
+	buffer[send_index++] = (uint8_t) ((modCANPackStateHandle->SoH/100) *255.0);
 	buffer[send_index++] = (uint8_t) modCANPackStateHandle->cycleCount;
 	buffer[send_index++] = (uint8_t) modCANPackStateHandle->operationalState;
 	buffer[send_index++] = (uint8_t) modCANPackStateHandle->faultState;

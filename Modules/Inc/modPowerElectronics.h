@@ -89,6 +89,9 @@ typedef struct {
 	uint16_t throttleDutyDischarge;
 	float    SoC;
 	float    SoCCapacityAh;
+	float 	 AhCounter;
+	float    WhCounter;
+	float    SoH;
 	OperationalStateTypedef operationalState;
 	bms_fault_state faultState;
 	float    packVoltage;
