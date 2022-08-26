@@ -436,23 +436,53 @@ bool driverSWLTC6804ReadAuxVoltagesArray(float auxVoltagesArray[][driverSWLTC680
 
 	driverSWLTC6804ReadAuxVoltageRegisters(AUX_CH_ALL,driverSWLTC6804TotalNumberOfICs,auxVoltageArrayCodes);
 	
+	#if !BMS_20S_CONFIG
 	for(uint8_t modulePointer = 0; modulePointer < driverSWLTC6804TotalNumberOfICs; modulePointer++) 
 	{
+		for(uint8_t auxPointer = 0; auxPointer < driverSWLTC6804MaxNoOfTempSensorPerModule; auxPointer++)
+		{
+			if(auxVoltageArrayCodes[modulePointer][auxPointer]*0.0001f < 10.0f)
+				#if BMS_16S_CONFIG
+				if(auxPointer == 0 || auxPointer == 1)
+					auxVoltagesArray[modulePointer][auxPointer] = 0.0f;
+				else
+					auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				#else
+					auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				#endif
+			else
+				dataValid = false;
+		}
+	}
+	#else
+	for(uint8_t modulePointer = 0; modulePointer < driverSWLTC6804TotalNumberOfICs; modulePointer++) 
+	{
+		if(modulePointer == 0)
+		{
 			for(uint8_t auxPointer = 0; auxPointer < driverSWLTC6804MaxNoOfTempSensorPerModule; auxPointer++)
 			{
 				if(auxVoltageArrayCodes[modulePointer][auxPointer]*0.0001f < 10.0f)
-					#if BMS_16S_CONFIG
 					if(auxPointer == 0 || auxPointer == 1)
 						auxVoltagesArray[modulePointer][auxPointer] = 0.0f;
 					else
 						auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
-					#else
-						auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
-					#endif
 				else
 					dataValid = false;
 			}
+		}
+		else if(modulePointer == 1)
+		{
+			for(uint8_t auxPointer = 0; auxPointer < driverSWLTC6804MaxNoOfTempSensorPerModule; auxPointer++)
+			{
+				if(auxVoltageArrayCodes[modulePointer][auxPointer]*0.0001f < 10.0f)
+					auxVoltagesArray[modulePointer][auxPointer] = driverSWLTC6804ConvertTemperatureExt(auxVoltageArrayCodes[modulePointer][auxPointer], ntcNominal, ntcSeriesResistance, ntcBetaFactor, ntcNominalTemp);
+				else
+					dataValid = false;
+			}
+
+		}
 	}
+	#endif
 
 	return dataValid;
 }

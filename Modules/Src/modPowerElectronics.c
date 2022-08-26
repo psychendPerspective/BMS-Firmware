@@ -814,6 +814,45 @@ void modPowerElectronicsCalcTempStats(void) {
 			}
 		}
 	}
+	#elif BMS_20S_CONFIG
+	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) 
+	{
+		if(sensorModulePointer == 0)
+		{
+			for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
+			{
+				if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+						tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+						tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+					tempBatterySumCount++;
+				}
+			}
+		}
+		else if (sensorModulePointer == 1)
+		{
+			for(uint8_t sensorPointer = 5; sensorPointer < 10; sensorPointer++) 
+			{
+				if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+						tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+						tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+					tempBatterySumCount++;
+				}
+			}
+		}
+		
+	}
 	#else
 	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
 	
@@ -1173,8 +1212,23 @@ void modPowerElectronicsCellMonitorsArrayTranslate(void) {
 
 void modPowerElectronicsAuxMonitorsArrayTranslate(void) {
 	uint8_t individualAuxPointer = 0;
-	
-  for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
+
+	#if BMS_20S_CONFIG
+	for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
+	  for(uint8_t modulePointerAux = 0; modulePointerAux < (modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule); modulePointerAux++) {
+			if(modulePointerAux < 5){		
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}else{ // when above 5, remove reference voltage measurement from Aux register group B : AVBR4 & AVBR5 for LTC6812 & LTC6813
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux+1];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}
+		}
+	}
+
+	#else 
+
+  	for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
 	  for(uint8_t modulePointerAux = 0; modulePointerAux < (modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule + 5); modulePointerAux++) {
 			if(modulePointerAux < 5){		
 				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux];
@@ -1185,6 +1239,7 @@ void modPowerElectronicsAuxMonitorsArrayTranslate(void) {
 			}
 		}
 	}
+	#endif
 	// modCommandsPrintf("T1:%f,T2:%f,T3:%f,T4:%f,T5:%f,T6:%f,T7:%f\n",
 	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[2].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[3].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[4].auxVoltage,
 	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[5].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[6].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[7].auxVoltage,
