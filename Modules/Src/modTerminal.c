@@ -1,23 +1,23 @@
 /*
-	Copyright 2016 Benjamin Vedder	benjamin@vedder.se
-	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  	Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-	This file is part of the VESC/DieBieMS/ENNOID-BMS firmware.
+	This file is part of the Xanadu BMS firmware.
 
-	The VESC/DieBieMS/ENNOID-BMS firmware is free software: you can redistribute it and/or modify
+	The Xanadu BMS firmware is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    The VESC/DieBieMS/ENNOID-BMS firmware is distributed in the hope that it will be useful,
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "modTerminal.h"
 
@@ -62,11 +62,10 @@ void modTerminalProcessString(char *str) {
 		 
 		modCommandsPrintf("-----Battery Pack Status-----");		
 		modCommandsPrintf("Pack voltage Direct   : %.2fV",packState.packVoltage);
-		#ifndef BMS_16S_CONFIG
-		modCommandsPrintf("Pack voltage CVAverage: %.2fV",packState.cellVoltageAverage*generalConfig->noOfCellsSeries);		
-		#endif
 		#if BMS_16S_CONFIG
 		modCommandsPrintf("Pack voltage CVAverage: %.2fV",packState.cellVoltageAverage*16);
+		#else
+		modCommandsPrintf("Pack voltage CVAverage: %.2fV",packState.cellVoltageAverage*generalConfig->noOfCellsSeries);		
 		#endif
 		modCommandsPrintf("Pack current          : %.2fA",packState.packCurrent);
 		modCommandsPrintf("LC Load voltage       : %.2fV",packState.loCurrentLoadVoltage);	
@@ -224,7 +223,7 @@ void modTerminalProcessString(char *str) {
 		
 	} else if (strcmp(argv[0], "help") == 0) {
 		modCommandsPrintf("------- Start of help -------");
-		modCommandsPrintf("Valid commands for ENNOID-BMS are:");
+		modCommandsPrintf("Valid commands for XANADU-BMS are:");
 		modCommandsPrintf("help");
 		modCommandsPrintf("  Show this help.");
 		modCommandsPrintf("ping");

@@ -1,7 +1,7 @@
-// 2020/04/16 - ENNOID-BMS
+// 2022/08/26 - XANADU-BMS
 // Specific firmwares can be developped upon request for special UART commands. (Specific baud rate, broadcast commands or drivers)
 
-// ENNOID-BMS standard firmware settings for UART:
+// XANADU-BMS standard firmware settings for UART:
 	// Baud rate 115200 
 	// No parity
 	// No flow control

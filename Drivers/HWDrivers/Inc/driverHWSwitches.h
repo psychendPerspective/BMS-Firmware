@@ -1,15 +1,16 @@
 /*
-	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  	Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-	This file is part of the DieBieMS/ENNOID-BMS firmware.
+	This file is part of the Xanadu BMS firmware.
 
-	The DieBieMS/ENNOID-BMS firmware is free software: you can redistribute it and/or modify
+	The Xanadu BMS firmware is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    The DieBieMS/ENNOID-BMS firmware is distributed in the hope that it will be useful,
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -35,21 +36,21 @@ typedef struct {
 extern const driverHWSwitchesPortStruct driverHWSwitchesPorts[NoOfSwitches];
 
 typedef enum {
-	#if (ENNOID_SS || ENNOID_SS_24 || ENNOID_XLITE)
+	#if (XANADU_LEV)
 	SWITCH_CHARGE_BYPASS = 0,
 	SWITCH_CHARGE,
 	SWITCH_PRECHARGE,
 	SWITCH_DISCHARGE,
 	SWITCH_DISCHARGEHV,
 	SWITCH_SAFETY_OUTPUT,
-	#elif (ENNOID_SS_LITE )
+	#elif (XANADU_LEV_LITE )
 	SWITCH_DISCHARGE = 0,
 	SWITCH_CHARGE,
 	SWITCH_PRECHARGE,
 	SWITCH_CHARGE_BYPASS,
 	SWITCH_DISCHARGEHV,
 	SWITCH_SAFETY_OUTPUT,
-	#else
+	#elif (XANADU_HV_EV)
 	SWITCH_COOLING = 0,
 	SWITCH_CHARGE,
 	SWITCH_PRECHARGE,

@@ -4,7 +4,7 @@
     "configurations": [       
         {
             "cwd": "${workspaceFolder}",
-            "executable": "C:\\Users\\visha\\OneDrive\\Documents\\code\\BMS-Firmware\\build_all\\ENNOID-HV\\ENNOID-BMS.elf",
+            "executable": "C:\\Users\\visha\\OneDrive\\Documents\\code\\BMS-Firmware\\build_all\\XANADU_HV_EV\\XANADU_HV_EV-BMS.elf",
             "name": " STLink Debugging ",
             "request": "launch",
             "type": "cortex-debug",

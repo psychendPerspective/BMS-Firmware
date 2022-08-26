@@ -1,22 +1,23 @@
 /*
-	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  	Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-	This file is part of the DieBieMS/ENNOID-BMS firmware.
+	This file is part of the Xanadu BMS firmware.
 
-	The DieBieMS/ENNOID-BMS firmware is free software: you can redistribute it and/or modify
+	The Xanadu BMS firmware is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    The DieBieMS/ENNOID-BMS firmware is distributed in the hope that it will be useful,
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "modPowerElectronics.h"
 #include "modTerminal.h"
@@ -167,8 +168,10 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	//start cell voltage, GPIO_1 and GPIO_2 ADC conversion by isoSPI write to LTC681x
 	modPowerElectronicsCellMonitorsStartCellConversion();
 
+	#if (HAS_EXTERNAL_VOLTAGE_MEASUREMENT)
 	// Init the external bus monitor
   	modPowerElectronicsInitISL();
+	#endif
 	
 	#if (HAS_HUMIDITY)
 		if(modPowerElectronicsGeneralConfigHandle->humidityICType == si7020)
@@ -192,7 +195,7 @@ void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, mod
 	modPowerElectronicsZeroCurrentConversion();	
 	
 	// Sample the first pack voltage moment
-	driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->packVoltage,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
+	//driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->packVoltage,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
 
 	
 	// Register terminal commands
@@ -443,22 +446,20 @@ void modPowerElectronicsCalculateCellStats(void) {
 		#if BMS_16S_CONFIG
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow && modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage > 0.5f)
 			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
-		#endif
-
-		#ifndef BMS_16S_CONFIG
+		#else
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow)
 			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
 		#endif
 
 	}
 	
-	#ifndef BMS_16S_CONFIG
-	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
-	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
-	#endif
 
 	#if BMS_16S_CONFIG
 	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(16 *modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
+	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
+
+	#else
+	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
 	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
 	#endif
 
@@ -713,10 +714,15 @@ void modPowerElectronicsUpdateSwitches(void) {
 	};
 	//Handle cooling output
 	#else
+	//Handle cooling fan switching 
 	if(modPowerElectronicsPackStateHandle->coolingDesired && modPowerElectronicsPackStateHandle->coolingAllowed)
+	{
 		driverHWSwitchesSetSwitchState(SWITCH_COOLING,(driverHWSwitchesStateTypedef)SWITCH_SET);
+	}
 	else
+	{
 		driverHWSwitchesSetSwitchState(SWITCH_COOLING,(driverHWSwitchesStateTypedef)SWITCH_RESET);
+	};
 	#endif
 };
 
@@ -789,11 +795,13 @@ void modPowerElectronicsCalcTempStats(void) {
 	}
 	#endif
 
-	#ifndef BMS_16S_CONFIG
-	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+
+	#if BMS_16S_CONFIG
+		// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
 	
 	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
-		for(uint8_t sensorPointer = 0; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) {
+		for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
+		{  //sensorPointer starts at 2, as GPIO_1 and GPIO_2 is used for current sensing
 			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
 				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
 					tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
@@ -806,14 +814,11 @@ void modPowerElectronicsCalcTempStats(void) {
 			}
 		}
 	}
-	#endif
-
-	#if BMS_16S_CONFIG
-		// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	#else
+	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
 	
 	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
-		for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
-		{  //sensorPointer starts at 2, as GPIO_1 and GPIO_2 is used for current sensing
+		for(uint8_t sensorPointer = 0; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) {
 			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
 				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
 					tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
@@ -841,8 +846,8 @@ void modPowerElectronicsCalcTempStats(void) {
 		
 			tempBatterySum += modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage;
 			tempBatterySumCount++;		
+			}
 		}
-	}
 	}	
 	
 
@@ -1281,25 +1286,23 @@ void modPowerElectronicsTerminalCellConnectionTest(int argc, const char **argv) 
 	// Start of general voltage test
 	modCommandsPrintf("---  Starting voltage measure test  ---");	
 	modCommandsPrintf("Pack voltage Direct   : %.2fV",modPowerElectronicsPackStateHandle->packVoltage);
-	#ifndef BMS_16S_CONFIG
-	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries);
-	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage));		
-	#endif
 	#if BMS_16S_CONFIG
 	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*16);
 	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage));
+	#else
+	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries);
+	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage));		
 	#endif
 	
-	#ifndef BMS_16S_CONFIG
-	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
+
+	#if BMS_16S_CONFIG
+	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
 		passFail = overAllPassFail = false;
 	}else{
 		passFail = true;
 	}
-	#endif
-
-	#if BMS_16S_CONFIG
-	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
+	#else
+	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
 		passFail = overAllPassFail = false;
 	}else{
 		passFail = true;
@@ -1457,11 +1460,10 @@ void modPowerElectronicsSamplePackVoltage(float *voltagePointer) {
 				driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,voltagePointer,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
 			break;
 		case sourcePackVoltageSumOfIndividualCellVoltages:
-			#ifndef BMS_16S_CONFIG
-			*voltagePointer = modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage;
-			#endif
-			#ifdef BMS_16S_CONFIG
+			#if BMS_16S_CONFIG
 			*voltagePointer = 16 * modPowerElectronicsPackStateHandle->cellVoltageAverage;
+			#else
+			*voltagePointer = modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage;
 			#endif
 			break;
 		case sourcePackVoltageCANDieBieShunt:

@@ -4,15 +4,15 @@ set -e
 FWPATH="../"
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-COPYDIR=ENNOID-HV
+COPYDIR=XANADU_HV_EV
 rm -f $COPYDIR/*
 
 cd $FWPATH
 make clean
-make build_args='-DENNOID_HV=1'
+make build_args='-DXANADU_HV_EV=1'
 cd $DIR
-cp $FWPATH/main.bin $COPYDIR/ENNOID-BMS.bin
-cp $FWPATH/main.elf $COPYDIR/ENNOID-BMS.elf
+cp $FWPATH/main.bin $COPYDIR/XANADU_HV_EV-BMS.bin
+cp $FWPATH/main.elf $COPYDIR/XANADU_HV_EV-BMS.elf
 
 # Clean
 cd $FWPATH

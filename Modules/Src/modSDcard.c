@@ -91,7 +91,7 @@ void modSDcard_logtoCSV(void)
         fresult = f_lseek(&bms_log_file, f_size(&bms_log_file));
         if(fresult != FR_OK)
             return;
-        #ifdef BMS_16S_CONFIG
+        #if BMS_16S_CONFIG
         snprintf(stringBuffer,BUFFER_SIZE, "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \r\n",
                 (HAL_GetTick()/1000.0), 
                 modSDcardPackStateHandle->packVoltage,

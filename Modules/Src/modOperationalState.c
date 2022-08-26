@@ -1,22 +1,23 @@
 /*
-	Copyright 2017 - 2018 Danny Bokma	danny@diebie.nl
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
 	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  	Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-	This file is part of the DieBieMS/ENNOID-BMS firmware.
+	This file is part of the Xanadu BMS firmware.
 
-	The DieBieMS/ENNOID-BMS firmware is free software: you can redistribute it and/or modify
+	The Xanadu BMS firmware is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    The DieBieMS/ENNOID-BMS firmware is distributed in the hope that it will be useful,
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "modOperationalState.h"
 #include "modTerminal.h"
@@ -77,7 +78,6 @@ void modOperationalStateTask(void) {
 				  case opStateChargingModeCharging:
 						modOperationalStateSetNewState(OP_STATE_CHARGING);								// Go to charge state
 						modEffectChangeState(STAT_LED_POWER,STAT_FLASH);									// Flash power LED when charging
-						modCommandsPrintf("Charger detected\n");
 						modOperationalStateChargerDisconnectDetectDelay = HAL_GetTick();
 						modOperationalStateFirstChargeEvent = true;
 						break;
@@ -90,7 +90,7 @@ void modOperationalStateTask(void) {
 			}
 			else if(modPowerStateButtonPressedOnTurnon()) 
 			{																							// Check if toggle button is ON 
-				modCommandsPrintf("Power Button detected\n");
+				
 				modOperationalStateSetNewState(OP_STATE_PRE_CHARGE);									// Prepare to goto operational state
 				modEffectChangeState(STAT_LED_POWER,STAT_SET);												// Turn LED on in normal operation
 			}
@@ -235,7 +235,7 @@ void modOperationalStateTask(void) {
 			if(modPowerElectronicsSetDisCharge(true)) 
 			{
 				if(modOperationalStateGeneralConfigHandle->LCUsePrecharge==forced){
-					#if ENNOID_HV
+					#if XANADU_HV_EV
 					modPowerElectronicsSetPreCharge(true);
 					#endif
 				}
