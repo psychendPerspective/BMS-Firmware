@@ -1,0 +1,29 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "files.associations": {
+        "driverhwspi1.h": "c",
+        "stm32f3xx_hal.h": "c",
+        "maindatatypes.h": "c",
+        "moddelay.h": "c",
+        "datahelper.h": "c",
+        "modpowerelectronics.h": "c",
+        "driverswltc6804.h": "c",
+        "modcan.h": "c",
+        "libfirfilter.h": "c",
+        "libcrc.h": "c",
+        "libekf.h": "c",
+        "modterminal.h": "c",
+        "modconfig.h": "c",
+        "modoperationalstate.h": "c",
+        "ff.h": "c",
+        "diskio.h": "c",
+        "integer.h": "c",
+        "ff_gen_drv.h": "c",
+        "ffconf.h": "c",
+        "stm32f3xx_it.h": "c",
+        "driverhwuart2.h": "c"
+    },
+    "C_Cpp.dimInactiveRegions": true,
+    "cortex-debug.openocdPath": "C:\\Program Files (x86)\\xpack-openocd-0.11.0-4\\bin\\openocd.exe"
+
+}

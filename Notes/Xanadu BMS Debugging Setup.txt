@@ -1,0 +1,57 @@
+VScode STLink Debugging Setup Steps:
+
+1. GNU Arm Embedded Toolchain/ ARM GNU Toolchain arm-none-eabi should already be installed (Link: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
+2. Install OpenOCD (Link: https://github.com/xpack-dev-tools/openocd-xpack/releases)
+3. Get the STM32F303.svd file (Link : https://github.com/posborne/cmsis-svd/tree/master/data/STMicro). Copy the raw file from Github and create a file in your working directory with the same name
+4. Under the .vscode folder in your working directory, create a launch.json file
+5. The contents of the launch.json file should be as follows:
+    
+{
+    //NOTE: Edit the "armToolchainPath", "svdFile", "executable" and "debuggerArgs" based on your installation/working directory paths
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [       
+        {
+            "cwd": "${workspaceFolder}",
+            "executable": "C:\\Users\\visha\\OneDrive\\Documents\\code\\BMS-Firmware\\build_all\\XANADU_HV_EV\\XANADU_HV_EV-BMS.elf",
+            "name": " STLink Debugging ",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "armToolchainPath": "C:\\Program Files (x86)\\Arm GNU Toolchain arm-none-eabi\\11.2 2022.02\\bin",
+            "interface": "swd",
+            "svdFile": "C:\\Users\\visha\\OneDrive\\Documents\\code\\BMS-Firmware\\STM32F303.svd",
+            "runToMain": true,
+            "configFiles": [
+                "interface\\stlink.cfg",
+                "target\\stm32f3x.cfg"
+            ],
+            "debuggerArgs": [
+                "-d",
+                "C:\\Users\\visha\\OneDrive\\Documents\\code\\BMS-Firmware\\"
+              ],
+            "preRestartCommands": [
+                "load",
+                "enable breakpoint",
+                "monitor reset"
+            ],
+            "showDevDebugOutput": true,
+          
+       }
+    ]
+}
+
+6. Under the .vscode folder in your working directory, add to and edit the settings.json file to point to the path of your OpenOCD installation, as follows:
+{   //other settings, 
+    "cortex-debug.openocdPath": "C:\\Program Files (x86)\\xpack-openocd-0.11.0-4\\bin\\openocd.exe"
+}
+
+7. Go to the extensions tab on VScode and install the Cortex-Debug Extension.
+8. OpenOCD and arm-none-eabi-gdb require python2.7 to run. Install python2.7.16, using Windows x86 MSI Installer(Link: https://www.python.org/downloads/release/python-2716/).
+   Ensure that the PATH is added to the enviornment variables during installation of python2.7, else the OpenOCD sever will crash.
+9. Go to the Run and Debug Tab on VScode.You should now be able to enter the debug enviornment for the Xanadu BMS firmware on VScode, by clicking the 'Green Play Button' (Start Debugging Option)
+10. Add breakpoints where required, however do note that adding too many breakpoints causes the gdb-server to crash.
+
+https://interrupt.memfault.com/blog/cortex-m-fault-debug

@@ -1,6 +1,5 @@
-Thumbs.db
 History
-*.IntLib
+*.IntLib\
 *.SchDocPreview
 *.PcbDocPreview
 *.tmp
@@ -15,7 +14,16 @@ History
 *.LOG
 *viewstate
 *.htm
-asccprj.scc
 *.PrjPCBStructure
 *.wmf
-Project\ Outputs*
+*.dionn
+*.ini
+*.axf
+*.hex
+*.dep
+*.map
+*.lnp
+*.bak
+*.sct
+*.dbgconf
+tools/

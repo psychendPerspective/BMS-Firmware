@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+FWPATH="../"
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+
+#################### HW XANADU_HV_EV ########################
+
+COPYDIR=XANADU_HV_EV
+rm -f $COPYDIR/*
+
+cd $FWPATH
+make clean
+make build_args='-DXANADU_HV_EV=1'
+cd $DIR
+cp $FWPATH/main.bin $COPYDIR/XANADU_HV_EV-BMS.bin
+cp $FWPATH/main.elf $COPYDIR/XANADU_HV_EV-BMS.elf
+
+#################### HW XANADU_LEV ########################
+
+COPYDIR=XANADU_LEV
+rm -f $COPYDIR/*
+
+cd $FWPATH
+make clean
+make build_args='-DXANADU_LEV=1'
+cd $DIR
+cp $FWPATH/main.bin $COPYDIR/XANADU_LEV-BMS.bin
+cp $FWPATH/main.elf $COPYDIR/XANADU_LEV-BMS.elf
+
+############################################################
+
+# Clean
+cd $FWPATH
+make clean
+cd $DIR

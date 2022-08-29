@@ -1,187 +1,301 @@
-#include "modPowerElectronics.h"
+/*
+	Copyright 2017 - 2018 Danny Bokma	  danny@diebie.nl
+	Copyright 2019 - 2020 Kevin Dionne	kevin.dionne@ennoid.me
+  	Copyright 2022        Vishal Bhat   vishal.bhat09@gmail.com
 
-modPowerElectricsPackStateTypedef *modPowerElectronicsPackStateHandle;
+	This file is part of the Xanadu BMS firmware.
+
+	The Xanadu BMS firmware is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    The Xanadu BMS firmware is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "modPowerElectronics.h"
+#include "modTerminal.h"
+
+modPowerElectronicsPackStateTypedef *modPowerElectronicsPackStateHandle;
 modConfigGeneralConfigStructTypedef *modPowerElectronicsGeneralConfigHandle;
+FIRFilter packCurrentMovingAverage;
+
+uint32_t modPowerElectronicsCANCurrentVESCLastTick;
+
 uint32_t modPowerElectronicsMeasureIntervalLastTick;
 
 uint32_t modPowerElectronicsChargeRetryLastTick;
 uint32_t modPowerElectronicsDisChargeLCRetryLastTick;
-uint32_t modPowerElectronicsDisChargeHCRetryLastTick;
+bool     modPowerElectronicsFirstDischarge;
+//static bool preChargeLastState;
+
 uint32_t modPowerElectronicsCellBalanceUpdateLastTick;
 uint32_t modPowerElectronicsTempMeasureDelayLastTick;
 uint32_t modPowerElectronicsChargeCurrentDetectionLastTick;
 uint32_t modPowerElectronicsBalanceModeActiveLastTick;
-uint8_t  modPowerElectronicsUnderAndOverVoltageErrorCount;
-driverLTC6803ConfigStructTypedef modPowerElectronicsLTCconfigStruct;
-bool     modPowerElectronicsAllowForcedOnState;
-uint16_t modPowerElectronicsTemperatureArray[3];
-uint16_t tempTemperature;
-float    modPowerElectronicsTempPackVoltage;
-uint8_t  modPowerElectronicsISLErrorCount;
+uint32_t modPowerElectronicsZeroCurrentCalibTick;
+uint32_t readVoltagedelayLastTick;
 
-void modPowerElectronicsInit(modPowerElectricsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer) {
-	modPowerElectronicsGeneralConfigHandle = generalConfigPointer;
-	modPowerElectronicsPackStateHandle = packState;
-	modPowerElectronicsUnderAndOverVoltageErrorCount = 0;
-	modPowerElectronicsAllowForcedOnState = false;
-	modPowerElectronicsISLErrorCount = 0;
+static uint32_t prechargeInitTick;
+static uint32_t prechargeCompleteTick;
+
+uint32_t modPowerElectronicsBuzzerUpdateIntervalLastTick;
+uint32_t modPowerElectronicsThrottleChargeLastTick;
+uint8_t  modPowerElectronicsUnderAndOverVoltageErrorCount;
+uint8_t  modPowerElectronicsSoftVoltageErrorCount;
+uint8_t  modPowerElectronicsUnderAndOverTemperatureErrorCount;
+bool     modPowerElectronicsAllowForcedOnState;
+uint16_t modPowerElectronicsAuxVoltageArray[3];
+uint16_t tempTemperature;
+uint8_t  modPowerElectronicsVinErrorCount;
+configCellMonitorICTypeEnum modPowerElectronicsCellMonitorsTypeActive;
+float    modPowerElectronicsChargeDiodeBypassHysteresis;
+bool     modPowerElectronicsVoltageSenseError;
+
+bool     modPowerElectronicsChargeDeratingActive;
+uint32_t modPowerElectronicsChargeIncreaseLastTick;
+uint32_t modPowerElectronicsSOAChargeChangeLastTick;
+uint32_t modPowerElectronicsSOADisChargeChangeLastTick;
+uint32_t chargeIncreaseIntervalTime;
+
+uint16_t  calculatedChargeThrottle = 0;
+float currentOffset = 0.0f;
+//float currentOffsetTemp = 0.0f;
+uint8_t currentOffsetCounter = 0;
+
+//uint32_t hardUnderVoltageFlags, hardOverVoltageFlags;
+
+void modPowerElectronicsInit(modPowerElectronicsPackStateTypedef *packState, modConfigGeneralConfigStructTypedef *generalConfigPointer) {
+	modPowerElectronicsGeneralConfigHandle						                  = generalConfigPointer;
+	modPowerElectronicsPackStateHandle						                      = packState;
+	modPowerElectronicsUnderAndOverVoltageErrorCount				              = 0;
+	modPowerElectronicsSoftVoltageErrorCount                                      = 0;
+	modPowerElectronicsUnderAndOverTemperatureErrorCount				          = 0;
+	modPowerElectronicsAllowForcedOnState						                  = false;
+	modPowerElectronicsVinErrorCount						                      = 0;
+	modPowerElectronicsChargeDiodeBypassHysteresis					              = 0.0f;
+	modPowerElectronicsVoltageSenseError						                  = false;
+	modPowerElectronicsChargeDeratingActive						                  = false;
+	modPowerElectronicsFirstDischarge						                      = true;
+	//preChargeLastState                                                            = false;
 	
 	// Init pack status
-	modPowerElectronicsPackStateHandle->throttleDutyCharge       = 0;
-	modPowerElectronicsPackStateHandle->throttleDutyDischarge    = 0;
-	modPowerElectronicsPackStateHandle->SoC                      = 0.0f;
-	modPowerElectronicsPackStateHandle->SoCCapacityAh            = 0.0f;
-	modPowerElectronicsPackStateHandle->operationalState         = OP_STATE_INIT;
-	modPowerElectronicsPackStateHandle->packVoltage              = 0.0f;
-	modPowerElectronicsPackStateHandle->packCurrent              = 0.0f;
-	modPowerElectronicsPackStateHandle->packPower                = 0.0f;
-	modPowerElectronicsPackStateHandle->loCurrentLoadCurrent     = 0.0f;
-	modPowerElectronicsPackStateHandle->loCurrentLoadVoltage     = 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageHigh          = 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageLow           = 0.0f;
-	modPowerElectronicsPackStateHandle->cellVoltageAverage       = 0.0;
-	modPowerElectronicsPackStateHandle->disChargeDesired         = false;
-	modPowerElectronicsPackStateHandle->disChargeLCAllowed       = true;
-	modPowerElectronicsPackStateHandle->disChargeHCAllowed       = true;
-	modPowerElectronicsPackStateHandle->preChargeDesired         = false;
-	modPowerElectronicsPackStateHandle->chargeDesired            = false;
-	modPowerElectronicsPackStateHandle->chargeAllowed 					 = true;
-	modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe = false;
-	modPowerElectronicsPackStateHandle->chargeBalanceActive      = false;
-	modPowerElectronicsPackStateHandle->chargeCurrentDetected    = false;
-	modPowerElectronicsPackStateHandle->powerButtonActuated      = false;
-	modPowerElectronicsPackStateHandle->packInSOA                = true;
-	modPowerElectronicsPackStateHandle->watchDogTime             = 255;
-	modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_NORMAL;
-	modPowerElectronicsPackStateHandle->temperatures[0]          = 200.0f;
-	modPowerElectronicsPackStateHandle->temperatures[1]          = 200.0f;
-	modPowerElectronicsPackStateHandle->temperatures[2]          = 200.0f;
-	modPowerElectronicsPackStateHandle->temperatures[3]          = 200.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryHigh          = 0.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryLow           = 0.0f;
-	modPowerElectronicsPackStateHandle->tempBatteryAverage       = 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSHigh              = 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSLow               = 0.0f;
-	modPowerElectronicsPackStateHandle->tempBMSAverage           = 0.0f;
+	modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS		  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage			      = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery	  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyCharge				          = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage			  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery	  = 0;
+	modPowerElectronicsPackStateHandle->throttleDutyDischarge					  = 0;
+	modPowerElectronicsPackStateHandle->SoC						  			      = 0.0f;
+	modPowerElectronicsPackStateHandle->SoCCapacityAh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->operationalState						  = OP_STATE_INIT;
+	modPowerElectronicsPackStateHandle->faultState							      = FAULT_CODE_NONE;
+	modPowerElectronicsPackStateHandle->packVoltage								  = 0.0f;
+	modPowerElectronicsPackStateHandle->packCurrent								  = 0.0f;
+	modPowerElectronicsPackStateHandle->packPower								  = 0.0f;
+	modPowerElectronicsPackStateHandle->loCurrentLoadCurrent					  = 0.0f;
+	modPowerElectronicsPackStateHandle->loCurrentLoadVoltage					  = 0.0f;
+	modPowerElectronicsPackStateHandle->chargerVoltage				  			  = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageHigh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageLow						      = 0.0f;
+	modPowerElectronicsPackStateHandle->cellVoltageAverage						  = 0.0f;
+	modPowerElectronicsPackStateHandle->disChargeDesired						  = false;
+	modPowerElectronicsPackStateHandle->disChargeLCAllowed						  = true;
+	modPowerElectronicsPackStateHandle->preChargeDesired						  = false;
+	modPowerElectronicsPackStateHandle->prechargeStatus                           = false;
+	modPowerElectronicsPackStateHandle->chargeDesired							  = false;
+	modPowerElectronicsPackStateHandle->chargePFETDesired					      = false;
+	modPowerElectronicsPackStateHandle->chargeAllowed							  = true;
+	modPowerElectronicsPackStateHandle->coolingDesired						   	  = false;
+	modPowerElectronicsPackStateHandle->coolingAllowed							  = true;
+	modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe				  = false;
+	modPowerElectronicsPackStateHandle->chargeBalanceActive						  = false;
+	modPowerElectronicsPackStateHandle->balanceActive							  = false;
+	modPowerElectronicsPackStateHandle->chargeCurrentDetected					  = false;
+	modPowerElectronicsPackStateHandle->powerButtonActuated						  = false;
+	modPowerElectronicsPackStateHandle->packInSOACharge							  = true;
+	modPowerElectronicsPackStateHandle->packInSOADischarge						  = true;	
+	modPowerElectronicsPackStateHandle->watchDogTime							  = 255;
+	modPowerElectronicsPackStateHandle->packOperationalCellState				  = PACK_STATE_NORMAL;
+	modPowerElectronicsPackStateHandle->temperatures[0]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[1]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[2]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->temperatures[3]							  = -50.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryHigh							  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryLow						   	  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBatteryAverage						  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSHigh								  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSLow								  = 0.0f;
+	modPowerElectronicsPackStateHandle->tempBMSAverage							  = 0.0f;
+	modPowerElectronicsPackStateHandle->humidity							  	  = 0.0f;
+	modPowerElectronicsPackStateHandle->buzzerOn								  = false;
+	modPowerElectronicsPackStateHandle->powerDownDesired						  = false;
+	modPowerElectronicsPackStateHandle->powerOnLongButtonPress					  = false;
+	modPowerElectronicsPackStateHandle->cycleCount                                = 0;
+	modPowerElectronicsPackStateHandle->AhCounter                                 = 0.0f;
+	modPowerElectronicsPackStateHandle->WhCounter                                 = 0.0f;
+	modPowerElectronicsPackStateHandle->SoH                                       = 0.0f;
 	
-  modPowerElectronicsInitISL();
+	// init the cell module variables empty
+	for( uint8_t modulePointer = 0; modulePointer < NoOfCellMonitorsPossibleOnBMS; modulePointer++) {
+		for(uint8_t cellPointer = 0; cellPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule; cellPointer++)
+			modPowerElectronicsPackStateHandle->cellModuleVoltages[modulePointer][cellPointer] = 0.0f;
+		
+		modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMask[modulePointer] = 0;
+		modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMaskTest[modulePointer] = 0;
+	}
+	// init the aux module variables empty
+	for( uint8_t modulePointer = 0; modulePointer < NoOfCellMonitorsPossibleOnBMS; modulePointer++) {
+		for(uint8_t auxPointer = 0; auxPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; auxPointer++)
+			modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][auxPointer] = 0.0f;
+	}
+	// init the exp module variables empty
+	for( uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->noOfExpansionBoard; modulePointer++) {
+		for(uint8_t expPointer = 0; expPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerExpansionBoard; expPointer++)
+			modPowerElectronicsPackStateHandle->expModuleVoltages[modulePointer][expPointer] = 0.0f;
+	}
+
+	// Init battery stack monitor, write Config registers of LTC681x
+	modPowerElectronicsCellMonitorsInit();
+	
+	//start cell voltage, GPIO_1 and GPIO_2 ADC conversion by isoSPI write to LTC681x
+	modPowerElectronicsCellMonitorsStartCellConversion();
+
+	#if (HAS_EXTERNAL_VOLTAGE_MEASUREMENT)
+	// Init the external bus monitor
+  	modPowerElectronicsInitISL();
+	#endif
+	
+	#if (HAS_HUMIDITY)
+		if(modPowerElectronicsGeneralConfigHandle->humidityICType == si7020)
+			driverSWSHT21Init();
+		else
+			driverSWHTC1080Init();
+	#endif
 	
 	// Init internal ADC
 	driverHWADCInit();
 	driverHWSwitchesInit();
-	driverHWSwitchesSetSwitchState(SWITCH_DRIVER,SWITCH_SET);																// Enable FET Driver
 	
-	// Init battery stack monitor
-	driverLTC6803ConfigStructTypedef configStruct;
-	configStruct.WatchDogFlag = false;																											// Don't change watchdog
-	configStruct.GPIO1 = false;
-	configStruct.GPIO2 = true;
-	configStruct.LevelPolling = true;																												// This wil make the LTC SDO high (and low when adc is busy) instead of toggling when polling for ADC ready and AD conversion finished.
-	configStruct.CDCMode = 2;																																// Comperator period = 13ms, Vres powerdown = no.
-	configStruct.DisChargeEnableMask = 0x0000;																							// Disable all discharge resistors
-	configStruct.noOfCells = modPowerElectronicsGeneralConfigHandle->noOfCells;							// Number of cells that can cause interrupt
-	configStruct.CellVoltageConversionMode = LTC6803StartCellVoltageADCConversionAll;				// Use normal cell conversion mode, in the future -> check for lose wires on initial startup.
-  configStruct.CellUnderVoltageLimit = modPowerElectronicsGeneralConfigHandle->cellHardUnderVoltage;// Set under limit to XV	-> This should cause error state
-	configStruct.CellOverVoltageLimit = modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage;	// Set upper limit to X.XXV  -> This should cause error state
-	
-	driverSWLTC6803Init(configStruct,TotalLTCICs);																					// Config the LTC6803 and start measuring
 	
 	modPowerElectronicsChargeCurrentDetectionLastTick = HAL_GetTick();
-	modPowerElectronicsBalanceModeActiveLastTick = HAL_GetTick();
+	modPowerElectronicsBalanceModeActiveLastTick      = HAL_GetTick();
+	modPowerElectronicsSOAChargeChangeLastTick        = HAL_GetTick();
+	modPowerElectronicsSOADisChargeChangeLastTick     = HAL_GetTick();
+	modPowerElectronicsZeroCurrentCalibTick           = HAL_GetTick();
+
+	//Do zero current calibration
+	modPowerElectronicsZeroCurrentConversion();	
+	
+	// Sample the first pack voltage moment
+	//driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->packVoltage,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
+
+	
+	// Register terminal commands
+	modTerminalRegisterCommandCallBack("testbms","Test the cell connection between cell monitor and pack and pack vs cell measurement.","[error (V)] [bal drop (mV)]",modPowerElectronicsTerminalCellConnectionTest);
+
 };
 
 bool modPowerElectronicsTask(void) {
 	bool returnValue = false;
+	// Static variable for SHT measure timer
+
 	
 	if(modDelayTick1ms(&modPowerElectronicsMeasureIntervalLastTick,100)) {
 		// reset tick for LTC Temp start conversion delay
 		modPowerElectronicsTempMeasureDelayLastTick = HAL_GetTick();
 		
-		// Collect low current current path data and check validity + recover if invalid.
-		driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsTempPackVoltage,0.004f);
-		if(fabs(modPowerElectronicsTempPackVoltage - modPowerElectronicsGeneralConfigHandle->noOfCells*modPowerElectronicsPackStateHandle->cellVoltageAverage) < 1.0f) {    // If the error is smaller than one volt continue normal operation. 
-			modPowerElectronicsPackStateHandle->packVoltage = modPowerElectronicsTempPackVoltage;
-			driverSWISL28022GetBusCurrent(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->loCurrentLoadCurrent,modPowerElectronicsGeneralConfigHandle->shuntLCOffset,modPowerElectronicsGeneralConfigHandle->shuntLCFactor);
-			driverHWADCGetLoadVoltage(&modPowerElectronicsPackStateHandle->loCurrentLoadVoltage);
-			modPowerElectronicsISLErrorCount = 0;																								// Reset error count.
-		}else{																																								// Error in voltage measurement.
-			if(modPowerElectronicsISLErrorCount++ >= ISLErrorThreshold){												// Increase error count
-				modPowerElectronicsISLErrorCount = ISLErrorThreshold;
-				// Make BMS signal error state and power down.
-			}else{
-			modPowerElectronicsInitISL();																												// Reinit I2C and ISL	
-			}
-		}
+		// Measure pack voltage data and check validity + recover if invalid.
+		modPowerElectronicsSamplePackAndLCData();
 		
-		// Combine the two currents and calculate pack power.
-		modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent + modPowerElectronicsPackStateHandle->hiCurrentLoadCurrent;
+		// Check whether packvoltage is whithin theoretical limits
+		#if BMS_16S_CONFIG
+		if(modPowerElectronicsPackStateHandle->packVoltage >= (16 * modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
+			modPowerElectronicsVoltageSenseError = true; 
+		}
+		#else
+		if(modPowerElectronicsPackStateHandle->packVoltage >= (modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) 
+		{
+			modPowerElectronicsVoltageSenseError = true;
+		}
+		#endif
+		
+		// Check the pack currents based on config and calculate pack power.
+		modPowerElectronicsPackStateHandle->packCurrent = modPowerElectronicsCalcPackCurrent();
 		modPowerElectronicsPackStateHandle->packPower   = modPowerElectronicsPackStateHandle->packCurrent * modPowerElectronicsPackStateHandle->packVoltage;
 		
-		// Check if LTC is still running
-		driverSWLTC6803ReadConfig(&modPowerElectronicsLTCconfigStruct);
-		if(!modPowerElectronicsLTCconfigStruct.CDCMode)
-			driverSWLTC6803ReInit();																														// Something went wrong, reinit the battery stack monitor.
-		else
-			driverSWLTC6803ReadCellVoltages(modPowerElectronicsPackStateHandle->cellVoltagesIndividual);
+    	// Read the battery cell voltages and temperatures with the cell monitor ICs
+		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
 		
-		// Check if LTC has discharge resistor enabled while not charging
-		if(!modPowerElectronicsPackStateHandle->chargeDesired && modPowerElectronicsLTCconfigStruct.DisChargeEnableMask)
-			driverSWLTC6803ReInit();																														// Something went wrong, reinit the battery stack monitor.
+		// get PCB mounted temperature sensor & humitity if applicable
+		#if (HAS_HUMIDITY)
+			if(modPowerElectronicsGeneralConfigHandle->humidityICType == si7020){
+				static uint32_t measureSHTStartLastTick          = 0;
+				static driverSWSHT21MeasureType lastMeasuredType = TEMP;
+				if(driverSWSHT21PollMeasureReady()){
+					modPowerElectronicsPackStateHandle->temperatures[0] = driverSWSHT21GetTemperature();
+					modPowerElectronicsPackStateHandle->humidity        = driverSWSHT21GetHumidity();
+				}
+				if(modDelayTick1ms(&measureSHTStartLastTick,500)){
+					driverSWSHT21StartMeasurement(lastMeasuredType);
 		
-		// Collect LTC temperature data
-		driverSWLTC6803ReadTempVoltages(modPowerElectronicsTemperatureArray);
-		modPowerElectronicsPackStateHandle->temperatures[0] = driverSWLTC6803ConvertTemperatureExt(modPowerElectronicsTemperatureArray[0],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
-		modPowerElectronicsPackStateHandle->temperatures[1] = driverSWLTC6803ConvertTemperatureExt(modPowerElectronicsTemperatureArray[1],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
-		modPowerElectronicsPackStateHandle->temperatures[2] = driverSWLTC6803ConvertTemperatureInt(modPowerElectronicsTemperatureArray[2]);
-		// get STM32 ADC NTC temp
-		driverHWADCGetNTCValue(&modPowerElectronicsPackStateHandle->temperatures[3],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupMasterPCB],25.0f);
+				if(lastMeasuredType == TEMP)																																							// Toggle between SHT21 sensor modes
+					lastMeasuredType = HUMIDITY;
+				else
+					lastMeasuredType = TEMP;
+				}
+			}else{
+				static uint32_t measureHTC1080StartLastTick          = 0;
+				if(driverSWHTC1080PollMeasureReady()){
+					modPowerElectronicsPackStateHandle->temperatures[0] = driverSWHTC1080GetTemperature();
+					modPowerElectronicsPackStateHandle->humidity        = driverSWHTC1080GetHumidity();
+				}
+				if(modDelayTick1ms(&measureHTC1080StartLastTick,500)){
+					driverSWHTC1080StartMeasurement();
+				}
+			};
+		#endif
+
+		#if(HAS_ON_BOARD_NTC)
+			driverHWADCGetNTCValue(&modPowerElectronicsPackStateHandle->temperatures[0],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupMasterPCB],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupMasterPCB],25.0f);
+		#endif
 		
-		// Calculate temperature statisticks
-		modPowerElectronicsCalcTempStats();
-		
-		// When temperature and cellvoltages are known calculate charge and discharge throttle.
+		// When temperature and cellvoltages are known ; calculate charge and discharge throttle.
 		modPowerElectronicsCalcThrottle();
 		
 		// Do the balancing task
-		modPowerElectronicsSubTaskBalaning();
+		modPowerElectronicsSubTaskBalancing();
 		
-		// Measure cell voltages
-		driverSWLTC6803StartCellVoltageConversion();
-		driverSWLTC6803ResetCellVoltageRegisters();
+		// Measure cell voltages and pack Current ADC value
+		modPowerElectronicsCellMonitorsStartCellConversion();
 		
-		// Check and respond to the measured voltage values
+		//Measure temperature voltages
+		modPowerElectronicsCellMonitorsStartTemperatureConversion();
+		
+		// Calculate temperature stats
+		modPowerElectronicsCalcTempStats();
+		
+		// Check and respond to the measured voltage and temperature values
 		modPowerElectronicsSubTaskVoltageWatch();
 		
-		// Check and respond to the measured temperature values
-		// modPowerElectronicsSubTaskTemperatureWatch();
+		// Check and respond to the measured current values
+		modPowerElectronicsSubTaskCurrentWatch();
 		
-		// Check and determine whether or not there is a charge current and we need to balance.
-		if(modPowerElectronicsPackStateHandle->packCurrent >= modPowerElectronicsGeneralConfigHandle->chargerEnabledThreshold) {
-			if(modDelayTick1ms(&modPowerElectronicsChargeCurrentDetectionLastTick,5000)) {
-				modPowerElectronicsPackStateHandle->chargeBalanceActive = modPowerElectronicsGeneralConfigHandle->allowChargingDuringDischarge;
-				modPowerElectronicsPackStateHandle->chargeCurrentDetected = true;																																								// Charge current is detected after 2 seconds
-			}
-			
-			if(modPowerElectronicsPackStateHandle->chargeCurrentDetected) {
-				modPowerElectronicsResetBalanceModeActiveTimeout();
-			}
-		}else{
-			modPowerElectronicsPackStateHandle->chargeCurrentDetected = false;
-			modPowerElectronicsChargeCurrentDetectionLastTick = HAL_GetTick();
-		}
-		// TODO: have balance time configureable
-		if(modDelayTick1ms(&modPowerElectronicsBalanceModeActiveLastTick,10*60*1000)) {																																			// When a charge current is derected, balance for 10 minutes
-			modPowerElectronicsPackStateHandle->chargeBalanceActive = false;
-		}
+		// Check if pack is in safe operating region and respond to the measured temperature values
+		modPowerElectronicsCheckPackSOA();
 		
 		modPowerElectronicsPackStateHandle->powerButtonActuated = modPowerStateGetButtonPressedState();
 		
 		returnValue = true;
 	}else
 		returnValue = false;
-	
-	if(modDelayTick1msNoRST(&modPowerElectronicsTempMeasureDelayLastTick,50))
-		driverSWLTC6803StartTemperatureVoltageConversion();
 	
 	return returnValue;
 };
@@ -192,34 +306,89 @@ void modPowerElectronicsAllowForcedOn(bool allowedState){
 
 void modPowerElectronicsSetPreCharge(bool newState) {
 	static bool preChargeLastState = false;
-	
-	if(preChargeLastState != newState) {
+
+	if(preChargeLastState != newState) 
+	{
 		preChargeLastState = newState;
+
+		if(modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1)
+		{
+			modPowerElectronicsPackStateHandle->preChargeDesired = newState;
+			prechargeInitTick = HAL_GetTick();
+		}
+			
+		else
+		{
+			modPowerElectronicsPackStateHandle->preChargeDesired = false;
+		}
 		
-		if(newState)
-			driverHWSwitchesSetSwitchState(SWITCH_DRIVER,SWITCH_SET);
-		
-		modPowerElectronicsPackStateHandle->preChargeDesired = newState;
 		modPowerElectronicsUpdateSwitches();
+		
+	}
+
+	if(modPowerElectronicsFirstDischarge)
+	{
+		prechargeCompleteTick = HAL_GetTick() - prechargeInitTick;
+
+		if(prechargeCompleteTick >= PRECHARGE_TIME)
+		{
+			modPowerElectronicsPackStateHandle->prechargeStatus = true;
+		}
+		else
+		{
+			modPowerElectronicsPackStateHandle->prechargeStatus = false;
+		}
 	}
 };
+
 
 bool modPowerElectronicsSetDisCharge(bool newState) {
 	static bool dischargeLastState = false;
 	
 	if(dischargeLastState != newState) {
-		if(newState)
-			driverHWSwitchesSetSwitchState(SWITCH_DRIVER,SWITCH_SET); 
+		dischargeLastState = newState;	
+
+		if(modPowerElectronicsGeneralConfigHandle->LCUseDischarge==1)
+			modPowerElectronicsPackStateHandle->disChargeDesired = newState;
+		else
+			modPowerElectronicsPackStateHandle->disChargeDesired = false;
 		
-		modPowerElectronicsPackStateHandle->disChargeDesired = newState;
+		
 		modPowerElectronicsUpdateSwitches();
-		dischargeLastState = newState;
+		
 	}
 	
-	if(modPowerElectronicsPackStateHandle->loCurrentLoadVoltage < PRECHARGE_PERCENTAGE*(modPowerElectronicsPackStateHandle->packVoltage)) // Prevent turn on with to low output voltage
-		return false;																																						                                   // Load voltage to low (output not precharged enough)
-	else
+	#if HAS_EXTERNAL_VOLTAGE_MEASUREMENT
+	// Prevent turn on with too low output voltage
+	if((modPowerElectronicsPackStateHandle->loCurrentLoadVoltage < modPowerElectronicsGeneralConfigHandle->minimalPrechargePercentage*(modPowerElectronicsPackStateHandle->packVoltage)) && modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1){ 
+		modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+
+		if(modPowerElectronicsFirstDischarge == false){
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+		}
+		return false;	// Load voltage too low (output not precharged enough) return whether or not precharge is needed.
+	}else{
+		modPowerElectronicsFirstDischarge = false;
 		return true;
+	}
+	#else
+	if((modPowerElectronicsPackStateHandle->prechargeStatus == 0) && modPowerElectronicsGeneralConfigHandle->LCUsePrecharge>=1)
+	{ 
+		modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+
+		if(modPowerElectronicsFirstDischarge == false)
+		{
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			//modPowerElectronicsPackStateHandle->prechargeStatus = false;
+		}
+		return false;	// Output not precharged enough, hence return whether or not precharge is needed.
+	}
+	else
+	{
+		modPowerElectronicsFirstDischarge = false;
+		return true;
+	}
+	#endif
 };
 
 void modPowerElectronicsSetCharge(bool newState) {
@@ -227,13 +396,29 @@ void modPowerElectronicsSetCharge(bool newState) {
 	
 	if(chargeLastState != newState) {
 		chargeLastState = newState;
-	
-		if(newState)
-			driverHWSwitchesSetSwitchState(SWITCH_DRIVER,SWITCH_SET);
-		
 		modPowerElectronicsPackStateHandle->chargeDesired = newState;
 		modPowerElectronicsUpdateSwitches();
-}
+	}
+};
+
+void modPowerElectronicsSetChargePFET(bool newState) {
+	static bool chargePFETLastState = false;
+	
+	if(chargePFETLastState != newState) {
+		chargePFETLastState = newState;
+		modPowerElectronicsPackStateHandle->chargePFETDesired = newState;
+		modPowerElectronicsUpdateSwitches();
+	}
+};
+
+void modPowerElectronicsSetCooling(bool newState) {
+	static bool coolingLastState = false;
+	
+	if(coolingLastState != newState) {
+		coolingLastState = newState;
+		modPowerElectronicsPackStateHandle->coolingDesired = newState;
+		modPowerElectronicsUpdateSwitches();
+	}
 };
 
 void modPowerElectronicsDisableAll(void) {
@@ -241,6 +426,8 @@ void modPowerElectronicsDisableAll(void) {
 		modPowerElectronicsPackStateHandle->disChargeDesired = false;
 		modPowerElectronicsPackStateHandle->preChargeDesired = false;
 		modPowerElectronicsPackStateHandle->chargeDesired = false;
+		modPowerElectronicsPackStateHandle->chargePFETDesired = false;
+		modPowerElectronicsPackStateHandle->coolingDesired = false;
 		driverHWSwitchesDisableAll();
 	}
 };
@@ -250,116 +437,213 @@ void modPowerElectronicsCalculateCellStats(void) {
 	modPowerElectronicsPackStateHandle->cellVoltageHigh = 0.0f;
 	modPowerElectronicsPackStateHandle->cellVoltageLow = 10.0f;
 	
-	for(uint8_t cellPointer = 0; cellPointer < modPowerElectronicsGeneralConfigHandle->noOfCells; cellPointer++) {
+	for(uint8_t cellPointer = 0; cellPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; cellPointer++) {
 		cellVoltagesSummed += modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
 		
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage > modPowerElectronicsPackStateHandle->cellVoltageHigh)
 			modPowerElectronicsPackStateHandle->cellVoltageHigh = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
 		
+		#if BMS_16S_CONFIG
+		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow && modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage > 0.5f)
+			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
+		#else
 		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage < modPowerElectronicsPackStateHandle->cellVoltageLow)
-			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;		
+			modPowerElectronicsPackStateHandle->cellVoltageLow = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellVoltage;
+		#endif
+
 	}
 	
-	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/modPowerElectronicsGeneralConfigHandle->noOfCells;
+
+	#if BMS_16S_CONFIG
+	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(16 *modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
 	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
+
+	#else
+	modPowerElectronicsPackStateHandle->cellVoltageAverage = cellVoltagesSummed/(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
+	modPowerElectronicsPackStateHandle->cellVoltageMisMatch = modPowerElectronicsPackStateHandle->cellVoltageHigh - modPowerElectronicsPackStateHandle->cellVoltageLow;
+	#endif
+
 };
 
-void modPowerElectronicsSubTaskBalaning(void) {
+void modPowerElectronicsSubTaskBalancing(void) {
 	static uint32_t delayTimeHolder = 100;
-	static uint16_t lastCellBalanceRegister = 0;
-	static bool delaytoggle = false;
-	uint16_t cellBalanceMaskEnableRegister = 0;
-	driverLTC6803CellsTypedef sortedCellArray[modPowerElectronicsGeneralConfigHandle->noOfCells];
+	static bool     delaytoggle = false;
 	
-	if(modDelayTick1ms(&modPowerElectronicsCellBalanceUpdateLastTick,delayTimeHolder)) {
+
+	if(modDelayTick1ms(&modPowerElectronicsCellBalanceUpdateLastTick,delayTimeHolder)) 
+	{
 		delaytoggle ^= true;
-		delayTimeHolder = delaytoggle ? modPowerElectronicsGeneralConfigHandle->cellBalanceUpdateInterval : 200;
+		delayTimeHolder = delaytoggle ? modPowerElectronicsGeneralConfigHandle->cellBalanceUpdateInterval : 1000;
 		
-		if(delaytoggle) {
-			for(int k=0; k<modPowerElectronicsGeneralConfigHandle->noOfCells; k++) {
-				sortedCellArray[k] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[k];	// This will contain the voltages that are unloaded by balance resistors
-			}
-				
-			modPowerElectronicsSortCells(sortedCellArray,modPowerElectronicsGeneralConfigHandle->noOfCells);
-			
-			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerElectronicsPackStateHandle->chargeBalanceActive || !modPowerElectronicsPackStateHandle->chargeAllowed) {																							// Check if charging is desired
-				for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->maxSimultaneousDischargingCells; i++) {
-					if(sortedCellArray[i].cellVoltage >= (modPowerElectronicsPackStateHandle->cellVoltageLow + modPowerElectronicsGeneralConfigHandle->cellBalanceDifferenceThreshold)) {
-						if(sortedCellArray[i].cellVoltage >= modPowerElectronicsGeneralConfigHandle->cellBalanceStart) {
-							cellBalanceMaskEnableRegister |= (1 << sortedCellArray[i].cellNumber);
+		if(delaytoggle) { //modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired) || modPowerStateChargerDetected() || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime
+			if((modPowerElectronicsPackStateHandle->chargeDesired && !modPowerElectronicsPackStateHandle->disChargeDesired && modPowerElectronicsPackStateHandle->chargeAllowed) || modPowerElectronicsGeneralConfigHandle->cellBalanceAllTime) 
+			{	
+				for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) 
+				{
+					if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= (modPowerElectronicsPackStateHandle->cellVoltageLow + modPowerElectronicsGeneralConfigHandle->cellBalanceDifferenceThreshold)) 
+					{
+						if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellVoltage >= modPowerElectronicsGeneralConfigHandle->cellBalanceStart) 
+						{
+							modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = true;
+							modPowerElectronicsPackStateHandle->balanceActive = true;
 						}
-					};
+						else
+						{
+						  modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
+						}
+					}
+					else
+					{
+						modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
+					}
 				}
 			}
 		}
+		else
+		{
+			for(uint8_t i = 0; i < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; i++) 
+			{
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[i].cellBleedActive = false;
+			}
+			modPowerElectronicsPackStateHandle->balanceActive = false;
+		}
 		
-		modPowerElectronicsPackStateHandle->cellBalanceResistorEnableMask = cellBalanceMaskEnableRegister;
-		
-		if(lastCellBalanceRegister != cellBalanceMaskEnableRegister)
-			driverSWLTC6803EnableBalanceResistors(cellBalanceMaskEnableRegister);
-		lastCellBalanceRegister = cellBalanceMaskEnableRegister;
+		modPowerElectronicsCallMonitorsCalcBalanceResistorArray();
+		modPowerElectronicsCellMonitorsEnableBalanceResistorsArray();
 	}
 };
+
+void modPowerElectronicsCallMonitorsCalcBalanceResistorArray(void) {
+	uint8_t modulePointer = 0;
+	uint8_t cellInMaskPointer = 0;
+	uint8_t seriesCount = 0;
+	uint8_t moduleCount = 0;
+	
+	// Clear array
+	for(uint8_t moduleClearPointer = 0; moduleClearPointer < NoOfCellMonitorsPossibleOnBMS; moduleClearPointer++)
+		modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMask[moduleClearPointer] = 0;
+	
+	
+	for(uint8_t cellPointer = 0; cellPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->noOfParallelModules; cellPointer++) {
+		seriesCount = cellPointer/modPowerElectronicsGeneralConfigHandle->noOfCellsSeries; 
+		moduleCount = seriesCount*(modPowerElectronicsGeneralConfigHandle->cellMonitorICCount/modPowerElectronicsGeneralConfigHandle->noOfParallelModules);
+		modulePointer = moduleCount + (cellPointer % modPowerElectronicsGeneralConfigHandle->noOfCellsSeries)/modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule;
+		cellInMaskPointer = (cellPointer - (seriesCount*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries)) % modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule;
+		
+		if(modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellPointer].cellBleedActive)
+		  modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMask[modulePointer] |= (1 << cellInMaskPointer);
+		else
+			modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMask[modulePointer] &= ~(1 << cellInMaskPointer);
+	}
+}
 
 void modPowerElectronicsSubTaskVoltageWatch(void) {
 	static bool lastdisChargeLCAllowed = false;
 	static bool lastChargeAllowed = false;
-	uint16_t hardUnderVoltageFlags, hardOverVoltageFlags;
 	
-	driverSWLTC6803ReadVoltageFlags(&hardUnderVoltageFlags,&hardOverVoltageFlags);
+	//modPowerElectronicsCellMonitorsReadVoltageFlags(&hardUnderVoltageFlags,&hardOverVoltageFlags);
 	modPowerElectronicsCalculateCellStats();
 	
-	if(modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_HARD_CELLVOLTAGE) {
-		// Handle soft cell voltage limits
-		// Low current
-		if(modPowerElectronicsPackStateHandle->cellVoltageLow <= modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage) {
+	if(modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_HARD_CELLVOLTAGE && modPowerElectronicsPackStateHandle->packOperationalCellState != PACK_STATE_ERROR_TEMPERATURE)
+	{
+		
+		// Handle soft cell voltage limits & temperatures
+		//Discharge disable
+		if(modPowerElectronicsPackStateHandle->cellVoltageLow <= modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage) 
+		{
+			if(modPowerElectronicsSoftVoltageErrorCount > modPowerElectronicsGeneralConfigHandle->maxSoftUnderVoltageErrorCount)
+			{
+				modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_REPEATED_SOFT_CELLVOLTAGE;
+				modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_MAX_SOFT_UVP_ERRORS;
+				modPowerElectronicsSoftVoltageErrorCount = 0;
+
+			}
 			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 			modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CELL_SOFT_UNDER_VOLTAGE;
+			modPowerElectronicsSoftVoltageErrorCount++;
+
+		}
+
+		if(modPowerElectronicsPackStateHandle->tempBatteryHigh >= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax){
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_DISCHARGE_OVER_TEMP_CELLS;
 		}
 		
-		// High current
-		if(modPowerElectronicsPackStateHandle->cellVoltageLow <= modPowerElectronicsGeneralConfigHandle->cellHCSoftUnderVoltage) {
-			modPowerElectronicsPackStateHandle->disChargeHCAllowed = false;
-			modPowerElectronicsDisChargeHCRetryLastTick = HAL_GetTick();
+		if(modPowerElectronicsPackStateHandle->tempBatteryLow <= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin){
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsDisChargeLCRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_DISCHARGE_UNDER_TEMP_CELLS;
 		}
-		
+		//Charge disable
 		if(modPowerElectronicsPackStateHandle->cellVoltageHigh >= modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage) {
 			modPowerElectronicsPackStateHandle->chargeAllowed = false;
 			modPowerElectronicsChargeRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CELL_SOFT_OVER_VOLTAGE;
 		}
 		
-		// Low current
-		if(modPowerElectronicsPackStateHandle->cellVoltageLow >= (modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->hysteresisDischarge)) {
-			if(modDelayTick1ms(&modPowerElectronicsDisChargeLCRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutDischargeRetry))
+		if( modPowerElectronicsPackStateHandle->tempBatteryHigh >= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax) {
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+			modPowerElectronicsChargeRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CHARGE_OVER_TEMP_CELLS;
+		}
+		
+		if(modPowerElectronicsPackStateHandle->tempBatteryLow <= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMin) {
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+			modPowerElectronicsChargeRetryLastTick = HAL_GetTick();
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_CHARGE_UNDER_TEMP_CELLS;
+		}
+		
+		//Enable discharge 
+		if(modPowerElectronicsPackStateHandle->cellVoltageLow >= (modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->hysteresisDischarge) && modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin) {
+			if(modDelayTick1ms(&modPowerElectronicsDisChargeLCRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutDischargeRetry)){
 				modPowerElectronicsPackStateHandle->disChargeLCAllowed = true;
+				modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_NONE;
+			}	
 		}
-		
-		// High current
-		if(modPowerElectronicsPackStateHandle->cellVoltageLow >= (modPowerElectronicsGeneralConfigHandle->cellHCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->hysteresisDischarge)) {
-			if(modDelayTick1ms(&modPowerElectronicsDisChargeHCRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutDischargeRetry))
-				modPowerElectronicsPackStateHandle->disChargeHCAllowed = true;
-		}		
-		
-		if(modPowerElectronicsPackStateHandle->cellVoltageHigh <= (modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->hysteresisCharge)) {
-			if(modDelayTick1ms(&modPowerElectronicsChargeRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutChargeRetry))
+		//Enable charge
+		if(modPowerElectronicsPackStateHandle->cellVoltageHigh <= (modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->hysteresisCharge) 
+			&& modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMin ) 
+		{
+			if(modDelayTick1ms(&modPowerElectronicsChargeRetryLastTick,modPowerElectronicsGeneralConfigHandle->timeoutChargeRetry)){
 				modPowerElectronicsPackStateHandle->chargeAllowed = true;
+				modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_NONE;
+			}
 		}
 		
-		if(modPowerElectronicsPackStateHandle->chargeAllowed && modPowerElectronicsPackStateHandle->disChargeLCAllowed)
-			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_NORMAL;
-		else
-			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_SOFT_CELLVOLTAGE;
+		//Handle cooling 
+		if(modPowerElectronicsPackStateHandle->tempBatteryHigh <= modPowerElectronicsGeneralConfigHandle->allowedTempBattCoolingMax && modPowerElectronicsPackStateHandle->tempBatteryLow >= modPowerElectronicsGeneralConfigHandle->allowedTempBattCoolingMin){
+			modPowerElectronicsPackStateHandle->coolingAllowed = false;
+		}else{
+			modPowerElectronicsPackStateHandle->coolingAllowed = true;
+		};
+		
 	}
 	
+
 	// Handle hard cell voltage limits
-	if(hardUnderVoltageFlags || hardOverVoltageFlags || (modPowerElectronicsPackStateHandle->packVoltage > modPowerElectronicsGeneralConfigHandle->noOfCells*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
+	if(modPowerElectronicsVoltageSenseError || modPowerElectronicsPackStateHandle->cellVoltageHigh > modPowerElectronicsGeneralConfigHandle-> cellHardOverVoltage || modPowerElectronicsPackStateHandle->cellVoltageLow < modPowerElectronicsGeneralConfigHandle-> cellHardUnderVoltage || (modPowerElectronicsPackStateHandle->packVoltage > modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage)) {
 		if(modPowerElectronicsUnderAndOverVoltageErrorCount++ > modPowerElectronicsGeneralConfigHandle->maxUnderAndOverVoltageErrorCount)
+		{
 			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_HARD_CELLVOLTAGE;
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_MAX_UVP_OVP_ERRORS;
+		}
 		modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
 		modPowerElectronicsPackStateHandle->chargeAllowed = false;
 	}else
 		modPowerElectronicsUnderAndOverVoltageErrorCount = 0;
 	
+	// Handle temperature limits
+	if(modPowerElectronicsPackStateHandle->tempBatteryHigh > (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax + 10.0f) || modPowerElectronicsPackStateHandle->tempBatteryLow < (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin - 10.0f)) {
+		if(modPowerElectronicsUnderAndOverTemperatureErrorCount++ > modPowerElectronicsGeneralConfigHandle->maxUnderAndOverTemperatureErrorCount){
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_TEMPERATURE;
+			modPowerElectronicsPackStateHandle->faultState = FAULT_CODE_MAX_UVT_OVT_ERRORS;
+		}
+		modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+		modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}else
+		modPowerElectronicsUnderAndOverTemperatureErrorCount = 0;
 	
 	// update outputs directly if needed
 	if((lastChargeAllowed != modPowerElectronicsPackStateHandle->chargeAllowed) || (lastdisChargeLCAllowed != modPowerElectronicsPackStateHandle->disChargeLCAllowed)) {
@@ -369,32 +653,82 @@ void modPowerElectronicsSubTaskVoltageWatch(void) {
 	}
 };
 
+void modPowerElectronicsSubTaskCurrentWatch(void){
+	// Handle over current limits (SC current), https://floating-point-gui.de/
+	if(fabs(modPowerElectronicsPackStateHandle->packCurrent) >= fabs(modPowerElectronicsGeneralConfigHandle->maxAllowedCurrent)){
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}
+
+	//Handle overcurrent during charging
+	if(modPowerElectronicsPackStateHandle->packCurrent > modPowerElectronicsGeneralConfigHandle->maxAllowedChargingCurrent)
+	{
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}
+
+	//Handle overcurrent during discharging 
+	if(modPowerElectronicsPackStateHandle->packCurrent < modPowerElectronicsGeneralConfigHandle->maxAllowedDischargingCurrent)
+	{
+			modPowerElectronicsPackStateHandle->packOperationalCellState = PACK_STATE_ERROR_OVER_CURRENT;
+			modPowerElectronicsPackStateHandle->disChargeLCAllowed = false;
+			modPowerElectronicsPackStateHandle->chargeAllowed = false;
+	}
+
+
+};
+
 // Update switch states, should be called after every desired/allowed switch state change
 void modPowerElectronicsUpdateSwitches(void) {
 	// Do the actual power switching in here
 	
-	//Handle pre charge output
-	if(modPowerElectronicsPackStateHandle->preChargeDesired && (modPowerElectronicsPackStateHandle->disChargeLCAllowed || modPowerElectronicsAllowForcedOnState))
+	//Handle precharge output
+	if(modPowerElectronicsPackStateHandle->preChargeDesired && (modPowerElectronicsPackStateHandle->disChargeLCAllowed || modPowerElectronicsAllowForcedOnState)){
 		driverHWSwitchesSetSwitchState(SWITCH_PRECHARGE,(driverHWSwitchesStateTypedef)SWITCH_SET);
-	else
+		driverHWSwitchesSetSwitchState(SWITCH_DISCHARGEHV,(driverHWSwitchesStateTypedef)SWITCH_SET);
+	}else{
 		driverHWSwitchesSetSwitchState(SWITCH_PRECHARGE,(driverHWSwitchesStateTypedef)SWITCH_RESET);
-	
+		driverHWSwitchesSetSwitchState(SWITCH_DISCHARGEHV,(driverHWSwitchesStateTypedef)SWITCH_RESET);
+	};
 	//Handle discharge output
-	if(modPowerElectronicsPackStateHandle->disChargeDesired && (modPowerElectronicsPackStateHandle->disChargeLCAllowed || modPowerElectronicsAllowForcedOnState))
+	if(modPowerElectronicsPackStateHandle->disChargeDesired && (modPowerElectronicsPackStateHandle->disChargeLCAllowed || modPowerElectronicsAllowForcedOnState)){
 		driverHWSwitchesSetSwitchState(SWITCH_DISCHARGE,(driverHWSwitchesStateTypedef)SWITCH_SET);
-	else
+		driverHWSwitchesSetSwitchState(SWITCH_DISCHARGEHV,(driverHWSwitchesStateTypedef)SWITCH_SET);
+	}else{
 		driverHWSwitchesSetSwitchState(SWITCH_DISCHARGE,(driverHWSwitchesStateTypedef)SWITCH_RESET);
-	
+	};
 	//Handle charge input
-	if(modPowerElectronicsPackStateHandle->chargeDesired && modPowerElectronicsPackStateHandle->chargeAllowed)
+	if(modPowerElectronicsPackStateHandle->chargeDesired && modPowerElectronicsPackStateHandle->chargeAllowed){
 		driverHWSwitchesSetSwitchState(SWITCH_CHARGE,(driverHWSwitchesStateTypedef)SWITCH_SET);
-	else
+	}else{
 		driverHWSwitchesSetSwitchState(SWITCH_CHARGE,(driverHWSwitchesStateTypedef)SWITCH_RESET);
+	};
+	#if (HAS_PFET_OUTPUT)
+	//Handle chargePFET input
+	if(modPowerElectronicsPackStateHandle->chargePFETDesired && modPowerElectronicsPackStateHandle->chargeAllowed){
+		driverHWSwitchesSetSwitchState(SWITCH_CHARGE_BYPASS,(driverHWSwitchesStateTypedef)SWITCH_SET);
+	}else{
+		driverHWSwitchesSetSwitchState(SWITCH_CHARGE_BYPASS,(driverHWSwitchesStateTypedef)SWITCH_RESET);
+	};
+	//Handle cooling output
+	#else
+	//Handle cooling fan switching 
+	if(modPowerElectronicsPackStateHandle->coolingDesired && modPowerElectronicsPackStateHandle->coolingAllowed)
+	{
+		driverHWSwitchesSetSwitchState(SWITCH_COOLING,(driverHWSwitchesStateTypedef)SWITCH_SET);
+	}
+	else
+	{
+		driverHWSwitchesSetSwitchState(SWITCH_COOLING,(driverHWSwitchesStateTypedef)SWITCH_RESET);
+	};
+	#endif
 };
 
-void modPowerElectronicsSortCells(driverLTC6803CellsTypedef *cells, uint8_t cellCount) {
+void modPowerElectronicsSortCells(cellMonitorCellsTypeDef *cells, uint8_t cellCount) {
 	int i,j;
-	driverLTC6803CellsTypedef value;
+	cellMonitorCellsTypeDef value;
 
 	for(i=0 ; i<(cellCount-1) ; i++) {
 		for(j=0 ; j<(cellCount-i-1) ; j++) {
@@ -408,7 +742,6 @@ void modPowerElectronicsSortCells(driverLTC6803CellsTypedef *cells, uint8_t cell
 };
 
 void modPowerElectronicsCalcTempStats(void) {
-	uint8_t sensorPointer;
 	
 	// Battery
 	float   tempBatteryMax;
@@ -422,7 +755,7 @@ void modPowerElectronicsCalcTempStats(void) {
 	float   tempBMSSum = 0.0f;
 	uint8_t tempBMSSumCount = 0;
 	
-	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery){
+	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery || modPowerElectronicsGeneralConfigHandle->tempEnableMaskExpansion){
 		tempBatteryMax = -100.0f;
 		tempBatteryMin = 100.0f;
 	}else{
@@ -438,20 +771,17 @@ void modPowerElectronicsCalcTempStats(void) {
 		tempBMSMin = 0.0f;
 	}
 	
-	for(sensorPointer = 0; sensorPointer < 16; sensorPointer++){
-		// Battery temperatures
-		if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
-			if(modPowerElectronicsPackStateHandle->temperatures[sensorPointer] > tempBatteryMax)
-				tempBatteryMax = modPowerElectronicsPackStateHandle->temperatures[sensorPointer];
-			
-			if(modPowerElectronicsPackStateHandle->temperatures[sensorPointer] < tempBatteryMin)
-				tempBatteryMin = modPowerElectronicsPackStateHandle->temperatures[sensorPointer];
-			
-			tempBatterySum += modPowerElectronicsPackStateHandle->temperatures[sensorPointer];
-			tempBatterySumCount++;
+	// BMS Board temperatures
+	#if BMS_BOARD_NTC
+
+	for(uint8_t sensorPointer = 1; sensorPointer < 16; sensorPointer++){
+		if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBMS & (1 << sensorPointer)){
+			modPowerElectronicsPackStateHandle->temperatures[sensorPointer] = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer-1].auxVoltage;
 		}
+	}
 	
-		// BMS temperatures
+	for(uint8_t sensorPointer = 0; sensorPointer < 16; sensorPointer++){
+	
 		if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBMS & (1 << sensorPointer)){
 			if(modPowerElectronicsPackStateHandle->temperatures[sensorPointer] > tempBMSMax)
 				tempBMSMax = modPowerElectronicsPackStateHandle->temperatures[sensorPointer];
@@ -463,6 +793,103 @@ void modPowerElectronicsCalcTempStats(void) {
 			tempBMSSumCount++;
 		}
 	}
+	#endif
+
+
+	#if BMS_16S_CONFIG
+		// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
+		for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
+		{  //sensorPointer starts at 2, as GPIO_1 and GPIO_2 is used for current sensing
+			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+					tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+					tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+				tempBatterySumCount++;
+			}
+		}
+	}
+	#elif BMS_20S_CONFIG
+	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) 
+	{
+		if(sensorModulePointer == 0)
+		{
+			for(uint8_t sensorPointer = 2; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) 
+			{
+				if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+						tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+						tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+					tempBatterySumCount++;
+				}
+			}
+		}
+		else if (sensorModulePointer == 1)
+		{
+			for(uint8_t sensorPointer = 5; sensorPointer < 10; sensorPointer++) 
+			{
+				if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+						tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+						tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+					
+					tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+					tempBatterySumCount++;
+				}
+			}
+		}
+		
+	}
+	#else
+	// Battery temperatures statistics for LTC aux channels without taking into account the first slave board temp measurement
+	
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; sensorModulePointer++) {
+		for(uint8_t sensorPointer = 0; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule; sensorPointer++) {
+			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery & (1 << sensorPointer)){
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage > tempBatteryMax)
+					tempBatteryMax = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				if(modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage < tempBatteryMin)
+					tempBatteryMin = modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;
+				
+				tempBatterySum += modPowerElectronicsPackStateHandle->auxVoltagesIndividual[sensorPointer].auxVoltage;		
+				tempBatterySumCount++;
+			}
+		}
+	}
+	#endif
+
+	
+	// Battery temperatures statistics for expansion board
+	for(uint8_t sensorModulePointer = 0; sensorModulePointer < modPowerElectronicsGeneralConfigHandle->noOfExpansionBoard; sensorModulePointer++) {
+		for(uint8_t sensorPointer = 0; sensorPointer < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerExpansionBoard; sensorPointer++) {
+			if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskExpansion & (1 << sensorPointer)){
+				if(modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage > tempBatteryMax)
+					tempBatteryMax = modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage;
+			
+				if(modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage < tempBatteryMin)
+					tempBatteryMin = modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage;
+		
+			tempBatterySum += modPowerElectronicsPackStateHandle->expVoltagesIndividual[sensorPointer].expVoltage;
+			tempBatterySumCount++;		
+			}
+		}
+	}	
+	
+
 	
 	// Battery temperatures
 	modPowerElectronicsPackStateHandle->tempBatteryHigh    = tempBatteryMax;
@@ -472,51 +899,106 @@ void modPowerElectronicsCalcTempStats(void) {
 	else
 		modPowerElectronicsPackStateHandle->tempBatteryAverage = 0.0f;
 	
-	// BMS temperatures
+	// BMS board temperatures
+	#if BMS_BOARD_NTC
 	modPowerElectronicsPackStateHandle->tempBMSHigh        = tempBMSMax;
 	modPowerElectronicsPackStateHandle->tempBMSLow         = tempBMSMin;
 	if(tempBMSSumCount)
 		modPowerElectronicsPackStateHandle->tempBMSAverage = tempBMSSum/tempBMSSumCount;
 	else
 		modPowerElectronicsPackStateHandle->tempBMSAverage = 0.0f;
-};
+
+	#endif
+}
 
 void modPowerElectronicsCalcThrottle(void) {
-	uint8_t calculatedChargeThrottle = 0;
-	uint8_t calculatedDisChargeThrottle = 0;
+	static uint16_t filteredChargeThrottle = 0;
+	static uint16_t filteredDisChargeThrottle = 0;
 	
-	static uint8_t filteredChargeThrottle = 0;
-	static uint8_t filteredDisChargeThrottle = 0;
+	// TODO make config to either do the throttling on the high or low current output
+	// TODO Make lower percentages configurable
 	
-	float inputLowerLimitCharge = modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperMargin - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperStart;
-	float inputUpperLimitCharge = modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperMargin;
-	float outputLowerLimitCharge = 100.0f;
-	float outputUpperLimitCharge = 10.0f;
+	//uint16_t  calculatedChargeThrottle = 0;
+	uint16_t  calculatedDisChargeThrottle = 0;
+	uint32_t  chargeIncreaseIntervalTime;
+	uint16_t  chargeIncreaseRate;
+	float     cellSoftUnderVoltage = modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage;
 	
-	float inputLowerLimitDisCharge  = modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerMargin;
-  float inputUpperLimitDisCharge  = modPowerElectronicsGeneralConfigHandle->cellLCSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerMargin + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerStart;
-  float outputLowerLimitDisCharge = 5.0f;
-	float outputUpperLimitDisCharge = 100.0f;
-
-	// Calculate (dis)charge throttle
-	calculatedChargeThrottle    = (uint8_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->cellVoltageHigh,inputLowerLimitCharge,inputUpperLimitCharge,outputLowerLimitCharge,outputUpperLimitCharge);
-	calculatedDisChargeThrottle = (uint8_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->cellVoltageLow,inputLowerLimitDisCharge,inputUpperLimitDisCharge,outputLowerLimitDisCharge,outputUpperLimitDisCharge);
+	// Throttle charge
+	float inputLowerLimitChargeVoltage               = modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperMargin - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperStart;
+	float inputUpperLimitChargeVoltage               = modPowerElectronicsGeneralConfigHandle->cellSoftOverVoltage - modPowerElectronicsGeneralConfigHandle->cellThrottleUpperMargin;
+	float inputLowerLimitChargeTemperatureBattery    = modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax - 3.0f;
+	float inputUpperLimitChargeTemperatureBattery    = modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax;	
+	float outputLowerLimitCharge = 1000.0f;
+	float outputUpperLimitCharge = 100.0f;
 	
-	// Filter the calculated throttle
-	if(calculatedChargeThrottle > filteredChargeThrottle){
-		if((calculatedChargeThrottle-filteredChargeThrottle) > modPowerElectronicsGeneralConfigHandle->throttleChargeIncreaseRate)
-			filteredChargeThrottle += modPowerElectronicsGeneralConfigHandle->throttleChargeIncreaseRate;
-		else
-			filteredChargeThrottle = calculatedChargeThrottle;
+	// Throttle discharge
+	float inputLowerLimitDisChargeVoltage            = cellSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerMargin;
+  float inputUpperLimitDisChargeVoltage            = cellSoftUnderVoltage + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerMargin + modPowerElectronicsGeneralConfigHandle->cellThrottleLowerStart;
+	float inputLowerLimitDisChargeTemperatureBattery = modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax - 3.0f;
+	float inputUpperLimitDisChargeTemperatureBattery = modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax;
+  float outputLowerLimitDisCharge = 50.0f;
+	float outputUpperLimitDisCharge = 1000.0f;
+	
+	// Throttle general
+	float inputLowerLimitTemperatureBMS = modPowerElectronicsGeneralConfigHandle->allowedTempBMSMax - 4.0f;
+	float inputUpperLimitTemperatureBMS = modPowerElectronicsGeneralConfigHandle->allowedTempBMSMax;
+	
+	modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS       = (uint16_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->tempBMSHigh,inputLowerLimitTemperatureBMS,inputUpperLimitTemperatureBMS,outputUpperLimitDisCharge,outputLowerLimitDisCharge);
+	modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage               = (uint16_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->cellVoltageHigh,inputLowerLimitChargeVoltage,inputUpperLimitChargeVoltage,outputLowerLimitCharge,outputUpperLimitCharge);
+	modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery    = (uint16_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->tempBatteryHigh,inputLowerLimitChargeTemperatureBattery,inputUpperLimitChargeTemperatureBattery,outputLowerLimitCharge,outputUpperLimitCharge);
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage            = (uint16_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->cellVoltageLow,inputLowerLimitDisChargeVoltage,inputUpperLimitDisChargeVoltage,outputLowerLimitDisCharge,outputUpperLimitDisCharge);
+	modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery = (uint16_t)modPowerElectronicsMapVariableFloat(modPowerElectronicsPackStateHandle->tempBatteryHigh,inputLowerLimitDisChargeTemperatureBattery,inputUpperLimitDisChargeTemperatureBattery,outputUpperLimitDisCharge,outputLowerLimitDisCharge);
+		
+	// Calculate (dis)charge throttle and pass it if in SOA
+	if(modPowerElectronicsPackStateHandle->packInSOACharge){
+		//modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS
+		//modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage
+		//modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery
+		calculatedChargeThrottle = modPowerElectronicsLowestInThree(modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS,modPowerElectronicsPackStateHandle->throttleDutyChargeVoltage,modPowerElectronicsPackStateHandle->throttleDutyChargeTemperatureBattery);
 	}else{
+		calculatedChargeThrottle = 0;
+	}
+	
+	if(modPowerElectronicsPackStateHandle->packInSOADischarge){
+		//modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS
+		//modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage
+		//modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery
+		
+		calculatedDisChargeThrottle = modPowerElectronicsLowestInThree(modPowerElectronicsPackStateHandle->throttleDutyGeneralTemperatureBMS,modPowerElectronicsPackStateHandle->throttleDutyDischargeVoltage,modPowerElectronicsPackStateHandle->throttleDutyDischargeTemperatureBattery);
+	}else{
+		calculatedDisChargeThrottle = 0;
+	}
+	
+	// Filter the calculated throttle charging
+	if(calculatedChargeThrottle >= filteredChargeThrottle) {
+		if(modPowerElectronicsChargeDeratingActive) {
+			chargeIncreaseIntervalTime = 5000;
+			chargeIncreaseRate         = 1;
+    }else{
+		  chargeIncreaseIntervalTime = 100;
+			chargeIncreaseRate         = modPowerElectronicsGeneralConfigHandle->throttleChargeIncreaseRate;
+		}
+		
+		if(modDelayTick1ms(&modPowerElectronicsChargeIncreaseLastTick,chargeIncreaseIntervalTime)){
+			if(abs(calculatedChargeThrottle-filteredChargeThrottle) > chargeIncreaseRate) {
+				filteredChargeThrottle += chargeIncreaseRate;		
+			}else{
+				filteredChargeThrottle = calculatedChargeThrottle;
+			}
+		}
+	}else{
+		modPowerElectronicsChargeDeratingActive = true;
 		filteredChargeThrottle = calculatedChargeThrottle;
 	}
 	
-	if(calculatedDisChargeThrottle > filteredDisChargeThrottle){
-		if((calculatedDisChargeThrottle-filteredDisChargeThrottle) > modPowerElectronicsGeneralConfigHandle->throttleDisChargeIncreaseRate)
+	// Filter the calculated throttle discharging
+	if(calculatedDisChargeThrottle >= filteredDisChargeThrottle){
+		if((calculatedDisChargeThrottle-filteredDisChargeThrottle) > modPowerElectronicsGeneralConfigHandle->throttleDisChargeIncreaseRate) {
 			filteredDisChargeThrottle += modPowerElectronicsGeneralConfigHandle->throttleDisChargeIncreaseRate;
-		else
+		}else{
 			filteredDisChargeThrottle = calculatedDisChargeThrottle;
+		}
 	}else{
 		filteredDisChargeThrottle = calculatedDisChargeThrottle;
 	}
@@ -527,6 +1009,7 @@ void modPowerElectronicsCalcThrottle(void) {
 	else 
 		modPowerElectronicsPackStateHandle->throttleDutyCharge = 0;
 	
+	// TODO have it configurable to either HC or LC
 	if(modPowerElectronicsPackStateHandle->disChargeLCAllowed)
 		modPowerElectronicsPackStateHandle->throttleDutyDischarge = filteredDisChargeThrottle;
 	else 
@@ -549,39 +1032,626 @@ float modPowerElectronicsMapVariableFloat(float inputVariable, float inputLowerL
 
 void modPowerElectronicsInitISL(void) {
 	// Init BUS monitor
+
 	driverSWISL28022InitStruct ISLInitStruct;
 	ISLInitStruct.ADCSetting = ADC_128_64010US;
 	ISLInitStruct.busVoltageRange = BRNG_60V_1;
-	ISLInitStruct.currentShuntGain = PGA_4_160MV;
+	ISLInitStruct.currentShuntGain = PGA_8_320MV;
 	ISLInitStruct.Mode = MODE_SHUNTANDBUS_CONTINIOUS;
 	driverSWISL28022Init(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,ISLInitStruct);
 }
 
+/*
+void modPowerElectronicsInitINA(void) {
+
+	// Init BUS monitor
+	driverSWINA226InitStruct INAInitStruct;
+	INAInitStruct.ADCSetting = ADC_128_64010US;
+	INAInitStruct.busVoltageRange = BRNG_60V_1;
+	INAInitStruct.currentShuntGain = PGA_8_320MV;
+	ISNAInitStruct.Mode = MODE_SHUNTANDBUS_CONTINIOUS;
+
+	driverSWINA226Init(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,INAInitStruct);
+
+}
+*/
+
 void modPowerElectronicsCheckPackSOA(void) {
-	bool packOutsideLimits = false;
+	static float hysteresysBMS       = -2.0f;
+	static float hysteresysDischarge = -2.0f;
+	static float hysteresysCharge    = -2.0f;
 	
+	static bool  lastPackInSOACharge    = true;
+	static bool  lastPackInSOADisCharge = true;
+	
+	bool outsideLimitsBMS       = false;
+	bool outsideLimitsDischarge = false;
+	bool outsideLimitsCharge    = false;	
+	
+	outsideLimitsBMS |= (modPowerElectronicsVinErrorCount >= VinErrorThreshold) ? true : false;
+
+	#if BMS_BOARD_NTC
+	// Check BMS Limits
 	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBMS) {
-		packOutsideLimits |= (modPowerElectronicsPackStateHandle->tempBMSHigh > 70.0f) ? true : false;
+		outsideLimitsBMS       |= (modPowerElectronicsPackStateHandle->tempBMSHigh     > (modPowerElectronicsGeneralConfigHandle->allowedTempBMSMax + hysteresysBMS) ) ? true : false;
+		outsideLimitsBMS       |= (modPowerElectronicsPackStateHandle->tempBMSLow      < (modPowerElectronicsGeneralConfigHandle->allowedTempBMSMin - hysteresysBMS) ) ? true : false;
+		
+    if(outsideLimitsBMS)
+			hysteresysBMS = -2.0f;
+		else
+			hysteresysBMS = 2.0f;
+	}
+	#endif
+	
+	// Check Battery Limits discharge
+	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery || modPowerElectronicsGeneralConfigHandle->tempEnableMaskExpansion) {
+		outsideLimitsDischarge |= (modPowerElectronicsPackStateHandle->tempBatteryHigh > (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMax + hysteresysDischarge) ) ? true : false;
+		outsideLimitsDischarge |= (modPowerElectronicsPackStateHandle->tempBatteryLow  < (modPowerElectronicsGeneralConfigHandle->allowedTempBattDischargingMin - hysteresysDischarge) ) ? true : false;
+		
+    if(outsideLimitsDischarge)
+			hysteresysDischarge = -2.0f;
+		else
+			hysteresysDischarge = 2.0f;
 	}
 	
-	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskBattery) {
-		packOutsideLimits |= (modPowerElectronicsPackStateHandle->tempBatteryHigh > 70.0f) ? true : false;
+	// Check Battery Limits charge
+	if(modPowerElectronicsGeneralConfigHandle->tempEnableMaskExpansion) {
+		outsideLimitsCharge    |= (modPowerElectronicsPackStateHandle->tempBatteryHigh > (modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMax + hysteresysCharge) ) ? true : false;
+		outsideLimitsCharge    |= (modPowerElectronicsPackStateHandle->tempBatteryLow  < (modPowerElectronicsGeneralConfigHandle->allowedTempBattChargingMin - hysteresysCharge) ) ? true : false;
+
+    if(outsideLimitsCharge)
+			hysteresysCharge = -2.0f;
+		else
+			hysteresysCharge = 2.0f;
 	}
 	
-	packOutsideLimits |= (modPowerElectronicsISLErrorCount >= ISLErrorThreshold) ? true : false;
+	// DisCharge delayed response
+	if(lastPackInSOADisCharge != !(outsideLimitsBMS || outsideLimitsDischarge)){
+		if(modDelayTick1ms(&modPowerElectronicsSOADisChargeChangeLastTick,1000)) {
+			lastPackInSOADisCharge = modPowerElectronicsPackStateHandle->packInSOADischarge = !(outsideLimitsBMS || outsideLimitsDischarge);
+		}
+	}else{
+		modPowerElectronicsSOADisChargeChangeLastTick = HAL_GetTick();
+	}	
 	
-	// TODO: timout when restoring SOA state.
-  modPowerElectronicsPackStateHandle->packInSOA = packOutsideLimits;
+	// Charge delayed response
+	if(lastPackInSOACharge != !(outsideLimitsBMS || outsideLimitsCharge)){
+		if(modDelayTick1ms(&modPowerElectronicsSOAChargeChangeLastTick,1000)) {
+			lastPackInSOACharge = modPowerElectronicsPackStateHandle->packInSOACharge = !(outsideLimitsBMS || outsideLimitsCharge);
+		}
+	}else{
+		modPowerElectronicsSOAChargeChangeLastTick = HAL_GetTick();
+	}
 }
 
 bool modPowerElectronicsHCSafetyCANAndPowerButtonCheck(void) {
-	if(modPowerElectronicsGeneralConfigHandle->useCANSafetyInput)	
-		return (modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe && modPowerElectronicsPackStateHandle->powerButtonActuated);
+	if(modPowerElectronicsGeneralConfigHandle->useCANSafetyInput)
+		return (modPowerElectronicsPackStateHandle->safetyOverCANHCSafeNSafe && (modPowerElectronicsPackStateHandle->powerButtonActuated | modPowerElectronicsGeneralConfigHandle->pulseToggleButton));
 	else
 		return true;
 }
 
 void modPowerElectronicsResetBalanceModeActiveTimeout(void) {
 	modPowerElectronicsBalanceModeActiveLastTick = HAL_GetTick();
+}
+
+void modPowerElectronicsCellMonitorsInit(void){
+
+			driverLTC6804ConfigStructTypedef configStruct;
+			configStruct.GPIO1                    = true;																														// Do not pull down this pin (false = pull down)
+			configStruct.GPIO2                    = true;																														// 
+			configStruct.GPIO3                    = true;																														// 
+			configStruct.GPIO4                    = true;																														// 
+			configStruct.GPIO5                    = true;																														//
+			configStruct.GPIO6                    = true;																														//
+			configStruct.GPIO7                    = true;																														//
+			configStruct.GPIO8                    = true;																														//
+			configStruct.GPIO9                    = true;																														//
+			configStruct.ReferenceON              = true;																														// Reference ON
+			configStruct.ADCOption                = true;																											  		// ADC Option register for configuration of over sampling ratio
+			configStruct.noOfCells                = modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule;			// Number of cells to monitor (that can cause interrupt)
+			configStruct.DisChargeEnableMask      = 0x00000000;																									// Set enable state of discharge, 1=EnableDischarge, 0=DisableDischarge
+			configStruct.DischargeTimout          = 0;																											// Discharge timout value / limit
+			configStruct.CellUnderVoltageLimit    = modPowerElectronicsGeneralConfigHandle->cellHardUnderVoltage; // Undervoltage level, cell voltages under this limit will cause interrupt
+			configStruct.CellOverVoltageLimit     = modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage;  // Over voltage limit, cell voltages over this limit will cause interrupt
+			driverSWLTC6804Init(configStruct, modPowerElectronicsGeneralConfigHandle->cellMonitorICCount, 18, 12, modPowerElectronicsGeneralConfigHandle->cellMonitorType);   
+			
+			// Safety signal is managed by the controller, it is configured as open drain and will be kept low by. watchdog will make the output to be released.
+			driverHWSwitchesSetSwitchState(SWITCH_SAFETY_OUTPUT,SWITCH_RESET);
+
+	
+	modPowerElectronicsCellMonitorsTypeActive = (configCellMonitorICTypeEnum)modPowerElectronicsGeneralConfigHandle->cellMonitorType;
+}
+
+void modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData(void){
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	
+	// Read cell voltages
+	driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
+	modPowerElectronicsCellMonitorsArrayTranslate();		
+		
+	// Convert modules to full array
+	
+	// Read aux voltages
+	driverSWLTC6804ReadAuxVoltagesArray(modPowerElectronicsPackStateHandle->auxModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
+	modPowerElectronicsAuxMonitorsArrayTranslate();
+	//driverSWLTC6804ReadAuxSensors(modPowerElectronicsAuxVoltageArray);
+	//modPowerElectronicsPackStateHandle->temperatures[0] =	modPowerElectronicsPackStateHandle->temperatures[1] = driverSWLTC6804ConvertTemperatureExt(modPowerElectronicsAuxVoltageArray[1],modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupLTCExt],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupLTCExt],25.0f);
+	
+	//Read exp voltages
+	driverSWADC128D818ReadExpVoltagesArray(modPowerElectronicsPackStateHandle->expModuleVoltages,modPowerElectronicsGeneralConfigHandle->NTC25DegResistance[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCTopResistor[modConfigNTCGroupExp],modPowerElectronicsGeneralConfigHandle->NTCBetaFactor[modConfigNTCGroupExp],25.0f);
+	modPowerElectronicsExpMonitorsArrayTranslate();
+}
+
+void modPowerElectronicsCellMonitorsReadCellVoltageData(void)
+{
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();	
+	// Read cell voltages
+	driverSWLTC6804ReadCellVoltagesArray(modPowerElectronicsPackStateHandle->cellModuleVoltages);
+	modPowerElectronicsCellMonitorsArrayTranslate();		
+}
+
+void modPowerElectronicsCellMonitorsArrayTranslate(void) {
+	uint8_t individualCellPointer = 0;
+	
+  for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
+		if((modulePointer+1) % (modPowerElectronicsGeneralConfigHandle->cellMonitorICCount/modPowerElectronicsGeneralConfigHandle->noOfParallelModules)==0 && modulePointer != 0){ // If end of serie string, use lastICNoOfCells instead of noOfCellsPerModule
+			for(uint8_t modulePointerCell = 0; modulePointerCell < modPowerElectronicsGeneralConfigHandle->lastICNoOfCells; modulePointerCell++) {
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellVoltage = modPowerElectronicsPackStateHandle->cellModuleVoltages[modulePointer][modulePointerCell];
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellNumber = individualCellPointer++;
+			}
+		}else
+		{ // use noOfCellsPerModule as usually
+			for(uint8_t modulePointerCell = 0; modulePointerCell < modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule; modulePointerCell++) {
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellVoltage = modPowerElectronicsPackStateHandle->cellModuleVoltages[modulePointer][modulePointerCell];
+				modPowerElectronicsPackStateHandle->cellVoltagesIndividual[individualCellPointer].cellNumber = individualCellPointer++;
+			}
+		}
+	}
+}
+
+void modPowerElectronicsAuxMonitorsArrayTranslate(void) {
+	uint8_t individualAuxPointer = 0;
+
+	#if BMS_20S_CONFIG
+	for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
+	  for(uint8_t modulePointerAux = 0; modulePointerAux < (modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule); modulePointerAux++) {
+			if(modulePointerAux < 5){		
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}else{ // when above 5, remove reference voltage measurement from Aux register group B : AVBR4 & AVBR5 for LTC6812 & LTC6813
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux+1];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}
+		}
+	}
+
+	#else 
+
+  	for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->cellMonitorICCount; modulePointer++) {
+	  for(uint8_t modulePointerAux = 0; modulePointerAux < (modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerModule + 5); modulePointerAux++) {
+			if(modulePointerAux < 5){		
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}else{ // when above 5, remove reference voltage measurement from Aux register group B : AVBR4 & AVBR5 for LTC6812 & LTC6813
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxVoltage = modPowerElectronicsPackStateHandle->auxModuleVoltages[modulePointer][modulePointerAux+1];
+				modPowerElectronicsPackStateHandle->auxVoltagesIndividual[individualAuxPointer].auxNumber = individualAuxPointer++;
+			}
+		}
+	}
+	#endif
+	// modCommandsPrintf("T1:%f,T2:%f,T3:%f,T4:%f,T5:%f,T6:%f,T7:%f\n",
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[2].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[3].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[4].auxVoltage,
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[5].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[6].auxVoltage,modPowerElectronicsPackStateHandle->auxVoltagesIndividual[7].auxVoltage,
+	// 	modPowerElectronicsPackStateHandle->auxVoltagesIndividual[8].auxVoltage);
+}
+
+void modPowerElectronicsExpMonitorsArrayTranslate(void) {
+	uint8_t individualExpPointer = 0;
+	
+  for(uint8_t modulePointer = 0; modulePointer < modPowerElectronicsGeneralConfigHandle->noOfExpansionBoard; modulePointer++) {
+	  for(uint8_t modulePointerExp = 0; modulePointerExp < modPowerElectronicsGeneralConfigHandle->noOfTempSensorPerExpansionBoard; modulePointerExp++) {	
+			modPowerElectronicsPackStateHandle->expVoltagesIndividual[individualExpPointer].expVoltage = modPowerElectronicsPackStateHandle->expModuleVoltages[modulePointer][modulePointerExp];
+			modPowerElectronicsPackStateHandle->expVoltagesIndividual[individualExpPointer].expNumber = individualExpPointer++;
+		}
+	}
+}
+
+void modPowerElectronicsCellMonitorsStartCellConversion(void) {
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804ResetCellVoltageRegisters();
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	//readVoltagedelayLastTick = HAL_GetTick();
+	//driverSWLTC6804StartCellVoltageConversion(MD_FILTERED,DCP_DISABLED,CELL_CH_ALL);
+}
+
+void modPowerElectronicsCellMonitorsStartLoadedCellConversion(bool PUP) {
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804ResetCellVoltageRegisters();
+	driverSWLTC6804StartLoadedCellVoltageConversion(MD_FILTERED,DCP_ENABLED,CELL_CH_ALL,PUP);
+}
+
+void modPowerElectronicsCellMonitorsStartTemperatureConversion(void) {
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	
+// For other GPIOs voltages conversions, the below functions are used.
+	driverSWLTC6804ResetAuxRegisters();
+	driverSWLTC6804StartAuxVoltageConversion(MD_FILTERED, AUX_CH_ALL);
+				
+}
+
+void modPowerElectronicsCellMonitorsEnableBalanceResistors(uint32_t balanceEnableMask){
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804EnableBalanceResistors(balanceEnableMask, modPowerElectronicsGeneralConfigHandle->cellMonitorType);
+}
+
+void modPowerElectronicsCellMonitorsEnableBalanceResistorsArrayTest(uint32_t balanceEnableMask){
+	for(uint8_t moduleClearPointer = 0; moduleClearPointer < NoOfCellMonitorsPossibleOnBMS; moduleClearPointer++) 
+		modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMaskTest[moduleClearPointer] = balanceEnableMask;
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804EnableBalanceResistorsArray(modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMaskTest, modPowerElectronicsGeneralConfigHandle->cellMonitorType);	
+}
+
+
+void modPowerElectronicsCellMonitorsEnableBalanceResistorsArray(){
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804EnableBalanceResistorsArray(modPowerElectronicsPackStateHandle->cellModuleBalanceResistorEnableMask, modPowerElectronicsGeneralConfigHandle->cellMonitorType);	
+}
+
+void modPowerElectronicsCellMonitorsReadVoltageFlags(uint32_t *underVoltageFlags, uint32_t *overVoltageFlags){
+	modPowerElectronicsCellMonitorsCheckAndSolveInitState();
+	driverSWLTC6804ReadVoltageFlags(underVoltageFlags,overVoltageFlags, modPowerElectronicsGeneralConfigHandle->lastICMask, modPowerElectronicsGeneralConfigHandle->noOfParallelModules, modPowerElectronicsPackStateHandle->dieTemperature);
+}
+
+void modPowerElectronicsCellMonitorsCheckAndSolveInitState(void){
+  if(modPowerElectronicsCellMonitorsTypeActive != modPowerElectronicsGeneralConfigHandle->cellMonitorType){
+		modPowerElectronicsCellMonitorsInit();
+	}
+}
+
+void modPowerElectronicsTerminalCellConnectionTest(int argc, const char **argv) {
+	(void)argc;
+	(void)argv;
+	uint32_t delayLastTick = HAL_GetTick();
+	float conversionResults[5][modPowerElectronicsGeneralConfigHandle->noOfCellsSeries]; // unloaded, 100uAloaded, balance resistor load even and uneven.
+	float difference;
+	uint8_t cellIDPointer;
+	bool passFail = true;
+	bool overAllPassFail = true;
+	
+	float   argErrorVoltage = 1.0f;
+	int32_t argBalanceDropMiliVoltage = 2;
+	
+	// Handle argument inputs
+	modCommandsPrintf("---------     Test inputs:     ---------");
+	if(argc == 3){
+		// Two arguments given, taking this as balance and error threshold.
+		sscanf(argv[1], "%f", &argErrorVoltage);
+		sscanf(argv[2], "%d", &argBalanceDropMiliVoltage);
+	}else{
+	  modCommandsPrintf("No valid test arguments given. Using defaults:");
+	}
+
+	modCommandsPrintf("Error threshold:   %.1fV",argErrorVoltage);
+	modCommandsPrintf("Balance threshold: %dmV",argBalanceDropMiliVoltage);
+	// end of argument inputs
+	
+	
+	// Start of general voltage test
+	modCommandsPrintf("---  Starting voltage measure test  ---");	
+	modCommandsPrintf("Pack voltage Direct   : %.2fV",modPowerElectronicsPackStateHandle->packVoltage);
+	#if BMS_16S_CONFIG
+	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*16);
+	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage));
+	#else
+	modCommandsPrintf("Pack voltage CVAverage: %.2fV",modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries);
+	modCommandsPrintf("Measure error         : %.2fV",fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage));		
+	#endif
+	
+
+	#if BMS_16S_CONFIG
+	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*16 - modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
+		passFail = overAllPassFail = false;
+	}else{
+		passFail = true;
+	}
+	#else
+	if(fabs(modPowerElectronicsPackStateHandle->cellVoltageAverage*modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-modPowerElectronicsPackStateHandle->packVoltage) > argErrorVoltage){
+		passFail = overAllPassFail = false;
+	}else{
+		passFail = true;
+	}
+	#endif
+
+	modCommandsPrintf("Result                : %s",passFail ? "Pass" : "Fail");// Tell whether test passed / failed
+	
+	
+	// Start of connection test
+	while(!modDelayTick100ms(&delayLastTick,2)){};                     // Wait 
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartCellConversion();              // Start ADC conversion
+	while(!modDelayTick100ms(&delayLastTick,2)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+	  conversionResults[4][cellIDPointer] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellIDPointer].cellVoltage;
+	}
+		
+	
+	modCommandsPrintf("------  Starting connectionTest  ------");
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait 
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartLoadedCellConversion(false);   // Start ADC conversion
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait 
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartLoadedCellConversion(false);   // Start ADC conversion
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+	  conversionResults[0][cellIDPointer] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellIDPointer].cellVoltage;
+	}
+
+	
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartLoadedCellConversion(true);    // Start ADC conversion
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartLoadedCellConversion(true);    // Start ADC conversion
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+	modPowerElectronicsCellMonitorsStartLoadedCellConversion(true);    // Start ADC conversion
+		
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+	  conversionResults[1][cellIDPointer] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellIDPointer].cellVoltage;
+	}
+	
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+		difference = conversionResults[0][cellIDPointer] - conversionResults[1][cellIDPointer];                                          // Calculate difference
+		
+		if((conversionResults[0][cellIDPointer] >= modPowerElectronicsGeneralConfigHandle->cellHardOverVoltage) || (conversionResults[0][cellIDPointer] <= modPowerElectronicsGeneralConfigHandle->cellHardUnderVoltage)) {
+			overAllPassFail = passFail = false;
+		}else{
+			if((cellIDPointer != 0) && (cellIDPointer != (modPowerElectronicsGeneralConfigHandle->noOfCellsSeries-1)) && ((cellIDPointer+1) % modPowerElectronicsGeneralConfigHandle->noOfCellsPerModule != 0) && (fabs(difference) >= 0.05f))
+				overAllPassFail = passFail = false;
+			else
+			  passFail = true;
+		}
+		
+	  modCommandsPrintf("[%2d] %.3fV - %.3fV = % .3fV -> %s",cellIDPointer+1,conversionResults[0][cellIDPointer],conversionResults[1][cellIDPointer],difference,passFail ? "Pass" : "Fail");  // Print the results
+	}
+	modCommandsPrintf("------    End connectionTest     ------");
+	modCommandsPrintf("------    Start balance test     ------");
+	
+	uint32_t cellBalanceMaskEnableRegister = 0;
+	for(int outputPointer = 0 ; outputPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries; outputPointer++) {
+		cellBalanceMaskEnableRegister |= (1 << outputPointer);
+	}
+
+	// Even cells
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
+	modPowerElectronicsCellMonitorsEnableBalanceResistorsArrayTest(cellBalanceMaskEnableRegister & 0x0002AAAA);
+	
+	for(int delay = 0; delay < 5; delay++){
+		while(!modDelayTick100ms(&delayLastTick,3)){};                   // Wait
+		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	 // Read cell voltages from monitor
+		modPowerElectronicsCellMonitorsStartLoadedCellConversion(false);            // Start ADC conversion
+	}
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+		
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+	  conversionResults[2][cellIDPointer] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellIDPointer].cellVoltage;
+	}
+	
+	// Uneven cells
+	modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();
+	modPowerElectronicsCellMonitorsEnableBalanceResistorsArrayTest(cellBalanceMaskEnableRegister & 0x00015555);
+	
+	
+	for(int delay = 0; delay < 5; delay++){
+		while(!modDelayTick100ms(&delayLastTick,3)){};                   // Wait
+		modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	 // Read cell voltages from monitor
+		modPowerElectronicsCellMonitorsStartLoadedCellConversion(false); // Start ADC conversion
+	}
+		
+	while(!modDelayTick100ms(&delayLastTick,3)){};                     // Wait
+  modPowerElectronicsCellMonitorsCheckConfigAndReadAnalogData();	   // Read cell voltages from monitor
+		
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+	  conversionResults[3][cellIDPointer] = modPowerElectronicsPackStateHandle->cellVoltagesIndividual[cellIDPointer].cellVoltage;
+	}
+
+	modPowerElectronicsCellMonitorsEnableBalanceResistorsArrayTest(0);
+	
+	for(cellIDPointer = 0; cellIDPointer < modPowerElectronicsGeneralConfigHandle->noOfCellsSeries ; cellIDPointer++){
+		float difference = fabs(conversionResults[4][cellIDPointer] - conversionResults[2][cellIDPointer]) + fabs(conversionResults[4][cellIDPointer] - conversionResults[3][cellIDPointer]);                                          // Calculate difference
+		
+		if(difference >= (0.001f*argBalanceDropMiliVoltage))
+			passFail = true;
+		else
+			overAllPassFail = passFail = false;
+		
+	  modCommandsPrintf("[%2d] %.3fV - %.3fV = % .3fV -> %s",cellIDPointer+1,conversionResults[2][cellIDPointer],conversionResults[3][cellIDPointer],difference,passFail ? "Pass" : "Fail");  // Print the results
+	}
+	
+	modCommandsPrintf("------    End balance test     ------");
+	modCommandsPrintf("------     Overall: %s       ------",overAllPassFail ? "Pass" : "Fail");// Tell whether test passed / failed
+}
+
+void modPowerElectronicsSamplePackAndLCData(void) {
+	float tempPackVoltage;
+	
+	modPowerElectronicsSamplePackVoltage(&tempPackVoltage);
+	modPowerElectronicsPackStateHandle->packVoltage = tempPackVoltage;
+
+	#if (HAS_EXTERNAL_VOLTAGE_MEASUREMENT)
+	modPowerElectronicsLCSenseSample();
+	
+	if(fabs(tempPackVoltage - modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage) < 0.2f*(modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage)) {    // If the error is different than 20% continue normal operation. 
+		modPowerElectronicsVinErrorCount = 0;																								// Reset error count.
+	}else{																																								// Error in voltage measurement.
+		if(modPowerElectronicsVinErrorCount++ >= VinErrorThreshold){												// Increase error count
+			modPowerElectronicsVinErrorCount = VinErrorThreshold;
+			// Make BMS signal error state and power down.
+			modPowerElectronicsVoltageSenseError = true;
+		}else{
+			modPowerElectronicsInitISL();																												// Reinit I2C and ISL
+		}
+	}
+	#endif
+}
+
+void modPowerElectronicsSamplePackVoltage(float *voltagePointer) {
+	switch(modPowerElectronicsGeneralConfigHandle->packVoltageDataSource) {
+		case sourcePackVoltageNone:
+			break;
+		case sourcePackVoltageISL28022:
+				driverSWISL28022GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,voltagePointer,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
+			break;
+		case sourcePackVoltageSumOfIndividualCellVoltages:
+			#if BMS_16S_CONFIG
+			*voltagePointer = 16 * modPowerElectronicsPackStateHandle->cellVoltageAverage;
+			#else
+			*voltagePointer = modPowerElectronicsGeneralConfigHandle->noOfCellsSeries*modPowerElectronicsPackStateHandle->cellVoltageAverage;
+			#endif
+			break;
+		case sourcePackVoltageCANDieBieShunt:
+			*voltagePointer = 0.0f;
+			break;
+		case sourcePackVoltageCANIsabellenhutte:
+			*voltagePointer = 0.0f;
+			break;
+		case sourcePackVoltageINA226:
+				//driverSWINA226GetBusVoltage(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,voltagePointer,modPowerElectronicsGeneralConfigHandle->voltageLCOffset, modPowerElectronicsGeneralConfigHandle->voltageLCFactor);
+			break;		
+		default:
+			break;
+	}
+}
+
+float modPowerElectronicsCalcPackCurrent(void){
+	float returnCurrent = 0.0f;
+	float returnCurrentTemp = 0.0f;
+
+	switch(modPowerElectronicsGeneralConfigHandle->packCurrentDataSource){
+		case sourcePackCurrentISL28022:
+			returnCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+			break;
+		case sourcePackCurrentNone:
+			returnCurrent = 0.0f;
+		// case sourcePackCurrentCANDieBieShunt:
+		// case sourcePackCurrentCANIsaBellenHuette:
+		// 	returnCurrent = 0.0f;
+		// 	break;
+		case sourcePackCurrentINA226:
+			returnCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+			break;
+		case sourcePackCurrentCANVESC:
+			if(modPowerStateChargerDetected()){
+				returnCurrent = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+			}else{
+				for (int i = 0;i < CAN_STATUS_MSGS_TO_STORE;i++) {
+					can_status_msg_4 *msg = comm_can_get_status_msg_4_index(i);
+
+					if (msg->id >= 0 && modDelayTick1msNoRST(&modPowerElectronicsCANCurrentVESCLastTick,2000)) {
+						returnCurrentTemp += msg->current_in;
+					}
+				}
+
+				returnCurrent = returnCurrentTemp/CAN_STATUS_MSGS_TO_STORE;
+			}
+		case sourceHALLeffectSensor:
+			returnCurrent = modPowerElectronicsHallEffectpackCurrent();
+			break;
+		default:
+			break;
+	}
+	
+	return returnCurrent;
+}
+
+void modPowerElectronicsLCSenseSample(void) {
+		driverSWISL28022GetBusCurrent(ISL28022_MASTER_ADDRES,ISL28022_MASTER_BUS,&modPowerElectronicsPackStateHandle->loCurrentLoadCurrent,currentOffset, modPowerElectronicsGeneralConfigHandle->shuntLCFactor);
+		driverHWADCGetLoadVoltage(&modPowerElectronicsPackStateHandle->loCurrentLoadVoltage, modPowerElectronicsGeneralConfigHandle->loadVoltageOffset, modPowerElectronicsGeneralConfigHandle->loadVoltageFactor);
+		#if (HAS_NO_DISCHARGE)
+			modPowerElectronicsPackStateHandle->loCurrentLoadVoltage = modPowerElectronicsPackStateHandle->packVoltage;
+		#endif
+	
+	#if (HAS_CHARGER_VOLTAGE_MEASUREMENT)
+		driverHWADCGetChargerVoltage(&modPowerElectronicsPackStateHandle->chargerVoltage, modPowerElectronicsGeneralConfigHandle->chargerVoltageOffset, modPowerElectronicsGeneralConfigHandle->chargerVoltageFactor);
+	#endif
+	
+	//Calculate the zero current offset
+	if(currentOffsetCounter < 2){
+		//currentOffsetTemp += modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+		currentOffsetCounter++;
+		if(currentOffsetCounter == 2){
+			currentOffset = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+		}
+	}
+}
+
+uint16_t modPowerElectronicsLowestInThree(uint16_t num1,uint16_t num2,uint16_t num3) {
+	if(num1 < num2 && num1 < num3) {
+		return num1;
+	}	else if(num2 < num3) {
+		return num2;
+	}	else{
+		return num3;
+	}
+}
+
+void  modPowerElectronicsResetCurrentOffset(void){
+	currentOffset = modPowerElectronicsPackStateHandle->loCurrentLoadCurrent;
+}
+
+void modPowerElectronicsZeroCurrentConversion(void)
+{
+	FIRFilter_Init(&packCurrentMovingAverage);
+	driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage);
+	driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF);
+	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF))
+	{
+		for(int i = 0; i <zeroCurrentCalibrationTime; i++)
+		{
+			//TO DO : implement for HallEffectcurrentOffset int32_t as zero current can be negative or positive value
+			modPowerElectronicsPackStateHandle->HallEffectcurrentOffset = ((modPowerElectronicsPackStateHandle->zeroCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->zeroCurrentVREF[0][1]*1000.0f))/0.00625; //mA
+			driverSWLTC6804ResetAuxRegisters();
+			driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+			HAL_Delay(250);
+			driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->zeroCurrentVoltage);
+			driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->zeroCurrentVREF);
+			if((-300 < modPowerElectronicsPackStateHandle-> HallEffectcurrentOffset) && (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset < 300))
+			{
+				break;
+			}
+		}
+	// driverSWLTC6804ResetCellVoltageRegisters();
+	// driverSWLTC6804ResetAuxRegisters();
+	// driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	}
+}
+
+float modPowerElectronicsHallEffectpackCurrent(void)
+{
+	if(driverSWLTC6804ReadPackCurrent(modPowerElectronicsPackStateHandle->packCurrentVoltage) && driverSWLTC6804ReadVREFvoltage(modPowerElectronicsPackStateHandle->packCurrentVREF))
+	{
+		//Vout = Vref +/- (1.25xIp / Ipn)
+		//Ip -> packCurrent , Vref ~ 2.5V
+		modPowerElectronicsPackStateHandle-> hallEffectpackCurrent = (((modPowerElectronicsPackStateHandle->packCurrentVoltage[0][0]*1000.0f) - (modPowerElectronicsPackStateHandle->packCurrentVREF[0][1]*1000.0f))/0.00625) - (modPowerElectronicsPackStateHandle->HallEffectcurrentOffset);
+		//modCommandsPrintf("Raw Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->hallEffectpackCurrent);
+		modPowerElectronicsPackStateHandle-> movingAvgHallEffectpackCurrent = FIRFilter_Update(&packCurrentMovingAverage, modPowerElectronicsPackStateHandle->hallEffectpackCurrent); //moving average filter
+		//modCommandsPrintf("Avg Current Value is : %.3f mA \n", modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent);
+	}
+	// driverSWLTC6804ResetCellVoltageRegisters();
+	// driverSWLTC6804ResetAuxRegisters();
+	// driverSWLTC6804StartCellAndAuxVoltageConversion(MD_FILTERED, DCP_DISABLED);
+	return (modPowerElectronicsPackStateHandle->movingAvgHallEffectpackCurrent/1000.0f);
 }
 

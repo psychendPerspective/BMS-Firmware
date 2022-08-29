@@ -2,9 +2,9 @@
 
 const STATPortStruct STATPorts[NoOfSTATs] = 								// Hold all status configuration data
 {
-	{GPIOB,RCC_AHBENR_GPIOAEN,GPIO_PIN_1},									// STAT_LED_DEBUG
+	{GPIOB,RCC_AHBENR_GPIOAEN,GPIO_PIN_3},									// STAT_LED_DEBUG
 	{GPIOB,RCC_AHBENR_GPIOCEN,GPIO_PIN_3},									// STAT_LED_Power
-	{GPIOA,RCC_AHBENR_GPIOCEN,GPIO_PIN_15}									// STAT_BUZZER
+	{GPIOA,RCC_AHBENR_GPIOCEN,GPIO_PIN_8}									// STAT_BUZZER, Not used, PWM_2 on BMSv1.0
 };
 
 void driverHWStatusInit(void) {
